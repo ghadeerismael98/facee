@@ -656,8 +656,20 @@
     async function openFacebookForProfile(profileId) {
       if (!profileId) return;
       try {
-        await api('POST', '/api/profiles/' + profileId + '/open-facebook');
-      } catch(e) { console.warn('Could not open Facebook:', e); }
+        var result = await api('POST', '/api/profiles/' + profileId + '/open-facebook');
+        var tabId = result.id;
+        if (tabId) {
+          // Open the remote browser viewer in the profile's iframe
+          var iframe = document.getElementById('iframe-' + profileId);
+          if (iframe) {
+            iframe.src = 'http://' + window.location.hostname + ':4000/browser-viewer?tabId=' + tabId;
+            iframe.style.height = '620px';
+          } else {
+            // If no iframe, open in new window
+            window.open('http://' + window.location.hostname + ':4000/browser-viewer?tabId=' + tabId, '_blank');
+          }
+        }
+      } catch(e) { console.warn('Could not open Facebook:', e); alert('Failed to open Facebook: ' + e.message); }
     }
 
     var deleteTargetId = null;

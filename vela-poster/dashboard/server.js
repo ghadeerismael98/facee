@@ -65,7 +65,6 @@ app.delete('/api/profiles/:id', async (req, res) => {
 
 app.post('/api/profiles/:id/open-facebook', async (req, res) => {
   try {
-    // Create a tab with Facebook in this profile
     const r = await fetch(`${VELA_API_URL}/api/tabs`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
@@ -74,6 +73,87 @@ app.post('/api/profiles/:id/open-facebook', async (req, res) => {
     const tab = await r.json();
     res.json(tab);
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Remote browser viewer proxy ───
+app.get('/api/browser/screenshot/:tabId', async (req, res) => {
+  try {
+    const r = await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/screenshot`, {
+      headers: { 'X-API-Key': VELA_API_KEY },
+    });
+    const base64 = await r.text();
+    res.type('text/plain').send(base64);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/browser/click/:tabId', async (req, res) => {
+  try {
+    await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/native/click`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ x: req.body.x, y: req.body.y }),
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/browser/type/:tabId', async (req, res) => {
+  try {
+    await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/keyboard/insert-text`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: req.body.text }),
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/browser/press/:tabId', async (req, res) => {
+  try {
+    await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/keyboard/press`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: req.body.key }),
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/browser/scroll/:tabId', async (req, res) => {
+  try {
+    await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/execute`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script: `window.scrollBy(0, ${req.body.deltaY || 300})` }),
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/browser/navigate/:tabId', async (req, res) => {
+  try {
+    await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/navigate`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: req.body.url }),
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/browser/tab/:tabId', async (req, res) => {
+  try {
+    await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}`, {
+      method: 'DELETE',
+      headers: { 'X-API-Key': VELA_API_KEY },
+    });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Serve the remote browser viewer page
+app.get('/browser-viewer', (_req, res) => {
+  res.sendFile(require('path').join(__dirname, 'browser-viewer.html'));
 });
 
 app.get('/api/dashboard/status', async (_req, res) => {
