@@ -100,6 +100,17 @@ app.delete('/api/profiles/:id', async (req, res) => {
 
 app.post('/api/profiles/:id/open-facebook', async (req, res) => {
   try {
+    // Close any existing tabs for this profile first to avoid RAM leak
+    const existing = await fetch(`${VELA_API_URL}/api/tabs`, {
+      headers: { 'X-API-Key': VELA_API_KEY },
+    }).then(r => r.json());
+    const profileTabs = (Array.isArray(existing) ? existing : []).filter(t => t.profileId === req.params.id);
+    for (const t of profileTabs) {
+      await fetch(`${VELA_API_URL}/api/tabs/${t.id}`, {
+        method: 'DELETE', headers: { 'X-API-Key': VELA_API_KEY },
+      }).catch(() => {});
+    }
+
     const r = await fetch(`${VELA_API_URL}/api/tabs`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
