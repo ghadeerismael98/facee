@@ -7,13 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 libcairo2 libasound2 libxshmfence1 \
     fonts-noto-color-emoji fonts-liberation fonts-noto-cjk \
     tor curl \
-    xvfb x11vnc websockify supervisor \
+    xvfb x11vnc novnc websockify supervisor \
     && rm -rf /var/lib/apt/lists/*
-
-# Get noVNC client files
-RUN mkdir -p /opt/novnc && \
-    curl -sL https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.tar.gz | \
-    tar xz -C /opt/novnc --strip-components=1
 
 # Create non-root user
 RUN groupadd -r ghost && useradd -r -g ghost -G audio,video ghost \
