@@ -284,9 +284,8 @@ app.post('/api/dashboard/sync-groups', async (req, res) => {
   try {
     await Promise.all(profileIds.map(async (profileId) => {
       // Read current group lists
-      const data = await posterApi('GET', '/api/storage/local?keys=fb-group-lists,fb-post-scheduler', null, profileId);
+      const data = await posterApi('GET', '/api/storage/local?keys=fb-group-lists', null, profileId);
       const gl = data['fb-group-lists'];
-      const sc = data['fb-post-scheduler'];
 
       // Get existing lists
       let groupLists = gl?.state?.groupLists || gl?.state?.state?.groupLists || [];
@@ -298,21 +297,9 @@ app.post('/api/dashboard/sync-groups', async (req, res) => {
         groupLists.push(newList);
       }
 
-      // Write back in Zustand persist format
-      const glState = { state: { groupLists }, version: 0 };
+      // Write back in Zustand persist format with selectedGroupListId
+      const glState = { state: { groupLists, selectedGroupListId: listId }, version: 0 };
       await posterApi('POST', '/api/storage/local', { 'fb-group-lists': glState }, profileId);
-
-      // Also set this as the selected group list
-      const scState = sc || { state: {}, version: 0 };
-      const innerState = scState.state?.state || scState.state || {};
-      if (scState.state?.state) {
-        scState.state.state.selectedGroupId = listId;
-      } else if (scState.state) {
-        scState.state.selectedGroupId = listId;
-      } else {
-        scState.state = { selectedGroupId: listId };
-      }
-      await posterApi('POST', '/api/storage/local', { 'fb-post-scheduler': scState }, profileId);
     }));
 
     res.json({ success: true, synced: profileIds.length });
