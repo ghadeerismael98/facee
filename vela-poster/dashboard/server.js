@@ -337,8 +337,22 @@ app.post('/api/dashboard/post-unified', async (req, res) => {
     };
   }
 
-  async function launchProfile(profileId, groupUrlsForProfile) {
-    const payload = buildPayload(groupUrlsForProfile);
+  async function getProfileUrls(profileId, fallbackUrls) {
+    // Read the profile's own group list from server storage
+    try {
+      const data = await posterApi('GET', '/api/storage/local?keys=fb-group-lists', null, profileId);
+      const gl = data['fb-group-lists'];
+      const lists = gl?.state?.groupLists || gl?.state?.state?.groupLists || [];
+      const selId = gl?.state?.selectedGroupListId || gl?.state?.state?.selectedGroupListId;
+      const selected = lists.find(g => g.id === selId) || lists[0];
+      if (selected?.urls?.length) return selected.urls;
+    } catch {}
+    return fallbackUrls;
+  }
+
+  async function launchProfile(profileId, fallbackUrls) {
+    const profileUrls = await getProfileUrls(profileId, fallbackUrls);
+    const payload = buildPayload(profileUrls);
     return posterApi('POST', '/api/extension/message', payload, profileId);
   }
 
