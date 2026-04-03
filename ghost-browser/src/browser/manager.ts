@@ -36,11 +36,23 @@ export const browserManager = {
   async launch(): Promise<Browser> {
     if (browser && browser.isConnected()) return browser;
 
-    console.log(`[BrowserManager] Launching Chromium (${headless ? 'headless' : 'headed'})...`);
-    browser = await chromium.launch({
+    const launchOptions: any = {
       headless,
       args: CHROMIUM_ARGS,
-    });
+    };
+
+    // Use system Chromium executable if set (Docker headed mode)
+    if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+      const fs = require('fs');
+      const execPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+      if (fs.existsSync(execPath)) {
+        launchOptions.executablePath = execPath;
+        console.log(`[BrowserManager] Using system Chromium: ${execPath}`);
+      }
+    }
+
+    console.log(`[BrowserManager] Launching Chromium (${headless ? 'headless' : 'headed'})...`);
+    browser = await chromium.launch(launchOptions);
 
     browser!.on('disconnected', () => {
       console.log('[BrowserManager] Browser disconnected');

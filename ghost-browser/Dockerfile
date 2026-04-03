@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-color-emoji fonts-liberation fonts-noto-cjk \
     tor curl \
     xvfb x11vnc novnc websockify supervisor \
+    # Install system Chromium as fallback for headed mode
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -22,10 +24,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Install Playwright Chromium
-RUN npx playwright install --with-deps chromium \
-    && chmod -R 755 /root/.cache/ms-playwright || true
-RUN mkdir -p /home/ghost/.cache && cp -r /root/.cache/ms-playwright /home/ghost/.cache/ \
+# Install Playwright browsers
+RUN npx playwright install --with-deps chromium || true
+# Copy to ghost user home
+RUN mkdir -p /home/ghost/.cache \
+    && (cp -r /root/.cache/ms-playwright /home/ghost/.cache/ 2>/dev/null || true) \
     && chown -R ghost:ghost /home/ghost
 
 # Copy source and build
@@ -43,6 +46,8 @@ ENV PORT=1306
 ENV DATA_DIR=/data
 ENV DISPLAY=:99
 ENV VNC_PASSWORD=ghostvnc
+# Tell Playwright to use system Chromium if its own isn't found
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 EXPOSE 1306 6080
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
