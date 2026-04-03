@@ -1,0 +1,48 @@
+services:
+  ghost-browser:
+    build: ./ghost-browser
+    ports:
+      - "1306:1306"
+    volumes:
+      - ghost-data:/data
+    environment:
+      - PORT=1306
+      - API_KEY=${API_KEY}
+      - DATA_DIR=/data
+    shm_size: 2gb
+    restart: unless-stopped
+
+  vela-poster:
+    build: ./vela-poster
+    ports:
+      - "${POSTER_PORT:-3333}:${POSTER_PORT:-3333}"
+      - "5001:5001"
+      - "5002:5002"
+      - "5003:5003"
+      - "5004:5004"
+      - "5005:5005"
+    environment:
+      - VELA_API_URL=http://ghost-browser:1306
+      - VELA_API_KEY=${API_KEY}
+      - PORT=${POSTER_PORT:-3333}
+    depends_on:
+      - ghost-browser
+    volumes:
+      - poster-data:/home/appuser/.face-poster
+    restart: unless-stopped
+
+  dashboard:
+    build: ./vela-poster/dashboard
+    ports:
+      - "4000:4000"
+    environment:
+      - POSTER_URL=http://vela-poster:${POSTER_PORT:-3333}
+      - VELA_API_URL=http://ghost-browser:1306
+      - VELA_API_KEY=${API_KEY}
+    depends_on:
+      - vela-poster
+    restart: unless-stopped
+
+volumes:
+  ghost-data:
+  poster-data:

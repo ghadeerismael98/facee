@@ -1,0 +1,7 @@
+Version 1.19.9
+
+Changes:
+- Skip useCredit for freshly verified premium users to avoid 403 credit warnings.
+- Keep credit consumption unchanged for non-premium users.
+- Re-verify premium status before skipping credit usage when no fresh verified status is available.
+- Preserve the 1.19.8 posting/content UI behavior; no content.js or popup bundle changes.

@@ -1,0 +1,16 @@
+Stable build based on the working beta codebase.
+
+Changes from the beta base:
+- Restored production key and localized production names
+- Version bumped to 1.19.6
+- Fixed credits network handling with timeout and HTTP error checks
+- Prevented credit failures from breaking successful posting flow
+- Fixed triggeredSet reassignment bug in the service worker state restore path
+
+Intentionally unchanged:
+- content.js
+- popup UI bundle in assets/main-BRMGV53A.js
+
+Reason:
+- Keep the posting/composer behavior exactly as in the beta build that worked,
+  and only harden the background/service-worker logic.

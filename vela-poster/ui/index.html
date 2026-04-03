@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Facebook Groups Bulk Poster (Vela)</title>
+    <!-- Chrome API Shim — must load BEFORE the popup bundle -->
+    <script src="/chrome-api-shim.js"></script>
+    <!-- Global error catcher for debugging -->
+    <script>
+      window.__errors = [];
+      window.addEventListener('error', function(e) {
+        window.__errors.push({msg: e.message, file: e.filename, line: e.lineno, col: e.colno});
+        console.error('[ERROR]', e.message, e.filename, e.lineno);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        window.__errors.push({msg: String(e.reason), type: 'promise'});
+        console.error('[PROMISE ERROR]', String(e.reason));
+      });
+    </script>
+    <script type="module" crossorigin src="/assets/main-BRMGV53A.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-BPtpQltp.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

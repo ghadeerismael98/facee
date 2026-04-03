@@ -1,0 +1,1599 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
+  <title>Command Center — Vela Poster</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0c0c0e;--surface:#16161a;--surface-hover:#1e1e24;--border:#2a2a32;--text:#e8e6e3;--text-dim:#8b8994;--text-muted:#5c5a65;--accent:#e07840;--accent-dim:rgba(224,120,64,.15);--accent-glow:rgba(224,120,64,.08);--success:#4ade80;--success-dim:rgba(74,222,128,.12);--danger:#f87171;--danger-dim:rgba(248,113,113,.12);--info:#60a5fa;--info-dim:rgba(96,165,250,.12);--radius:10px;--mono:'DM Mono',monospace;--sans:'Outfit',sans-serif}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh}
+    body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+
+    .shell{max-width:1600px;margin:0 auto;padding:32px 24px 80px}
+
+    /* Header */
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+    .header h1{font-size:24px;font-weight:600;letter-spacing:-.5px}
+    .header h1 span{color:var(--accent)}
+    .header-meta{font-family:var(--mono);font-size:11px;color:var(--text-dim);display:flex;gap:16px;align-items:center}
+    .live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--success);margin-right:5px;animation:pulse 2s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+    /* Controls bar */
+    .controls{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);flex-wrap:wrap}
+    .btn{font-family:var(--sans);font-size:13px;font-weight:500;padding:8px 20px;border:none;border-radius:6px;cursor:pointer;transition:all .15s}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-post{background:var(--accent);color:#fff}
+    .btn-post:hover:not(:disabled){background:#c96830}
+    .btn-stop{background:var(--danger-dim);color:var(--danger);border:1px solid rgba(248,113,113,.2)}
+    .btn-stop:hover:not(:disabled){background:rgba(248,113,113,.2)}
+    .btn-info{background:var(--info-dim);color:var(--info);border:1px solid rgba(96,165,250,.2)}
+    .btn-info:hover:not(:disabled){background:rgba(96,165,250,.2)}
+    .btn-sm{font-size:11px;padding:5px 12px}
+    .btn-xs{font-size:10px;padding:3px 8px}
+    .aggregate{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+    .agg-chip{padding:3px 8px;border-radius:4px;font-size:10px;margin-left:8px}
+    .agg-chip.running{background:var(--accent-dim);color:var(--accent)}
+    .agg-chip.done{background:var(--success-dim);color:var(--success)}
+
+    /* Profile dropdown */
+    .profile-dropdown{position:relative}
+    .profile-dropdown-btn{font-family:var(--mono);font-size:12px;padding:6px 14px;background:var(--surface-hover);color:var(--text);border:1px solid var(--border);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap}
+    .profile-dropdown-btn:hover{border-color:var(--accent)}
+    .profile-dropdown-btn .arrow{font-size:8px;opacity:.6}
+    .profile-dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 0;z-index:200;display:none;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+    .profile-dropdown-menu.open{display:block}
+    .dd-item{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;font-size:12px;transition:background .1s}
+    .dd-item:hover{background:var(--surface-hover)}
+    .dd-item.dd-action{color:var(--accent);font-weight:500;border-bottom:1px solid var(--border)}
+    .dd-item .dd-check{width:14px;height:14px;border:1.5px solid var(--text-muted);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;transition:all .15s}
+    .dd-item .dd-check.checked{background:var(--accent);border-color:var(--accent);color:#fff}
+    .dd-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+    .sel-count{font-family:var(--mono);font-size:11px;color:var(--text-dim);padding:4px 10px;background:var(--accent-dim);border-radius:4px;white-space:nowrap}
+
+    /* Unified command area */
+    .unified{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
+    .unified-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+    .unified-header h2{font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px}
+    .unified-header .toggle-arrow{font-size:10px;opacity:.5;transition:transform .2s}
+    .unified-header .toggle-arrow.open{transform:rotate(90deg)}
+    .unified-body{display:none;padding:18px}
+    .unified-body.open{display:block}
+    .unified-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    @media(max-width:900px){.unified-cols{grid-template-columns:1fr}}
+
+    /* Post composition */
+    .compose-section h3,.groups-section h3,.schedule-section h3{font-size:12px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+
+    /* Composer toolbar — matches popup exactly: B I U | H1 H2 | UL OL | Spintax emoji */
+    .compose-toolbar{display:flex;align-items:center;gap:1px;padding:6px 8px;background:var(--surface-hover);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0}
+    .tb-btn{background:none;border:1px solid transparent;color:var(--text-dim);cursor:pointer;padding:5px 8px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--sans);line-height:1;transition:all .12s;min-width:28px;text-align:center;display:flex;align-items:center;justify-content:center}
+    .tb-btn:hover{background:var(--bg);color:var(--text)}
+    .tb-btn.active{background:var(--accent-dim);color:var(--accent)}
+    .tb-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .tb-btn.tb-spintax{color:var(--accent);font-size:11px;font-weight:600;letter-spacing:.3px;padding:4px 10px;gap:4px}
+    .tb-btn.tb-spintax:hover{background:var(--accent-dim)}
+    .tb-sep{width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0}
+    .tb-right{margin-left:auto;display:flex;align-items:center;gap:2px}
+
+    /* Spintax panel — matches popup's interactive editor */
+    .spintax-panel{position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;z-index:200;display:none;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+    .spintax-panel.open{display:block}
+    /* Spintax panel header */
+    .spintax-panel .sp-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+    .spintax-panel .sp-header h4{font-size:14px;font-weight:600;color:var(--text);margin:0}
+    .spintax-panel .sp-header .sp-tabs{display:flex;gap:4px;align-items:center}
+    .spintax-panel .sp-header .sp-tab{font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;color:var(--text-dim);transition:all .12s}
+    .spintax-panel .sp-header .sp-tab:hover{background:var(--surface-hover);color:var(--text)}
+    .spintax-panel .sp-header .sp-tab.active{background:var(--accent-dim);color:var(--accent)}
+    .spintax-panel .sp-close{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px}
+    .spintax-panel .sp-close:hover{color:var(--text)}
+    /* Info bar */
+    .spintax-panel .sp-info{padding:10px 14px;font-size:11px;color:var(--text-dim);line-height:1.5;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:8px}
+    .spintax-panel .sp-info-icon{color:var(--info);font-size:14px;flex-shrink:0;margin-top:1px}
+    .spintax-panel .sp-info .sp-example{font-family:var(--mono);font-size:10px;color:var(--text);background:var(--bg);padding:4px 8px;border-radius:4px;border:1px solid var(--border);display:inline-block;margin-top:4px}
+    /* Option inputs */
+    .spintax-panel .sp-body{padding:14px}
+    .spintax-panel .sp-options{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+    .spintax-panel .sp-opt-row{display:flex;align-items:center;gap:8px}
+    .spintax-panel .sp-opt-drag{color:var(--text-muted);cursor:grab;font-size:10px;flex-shrink:0;user-select:none}
+    .spintax-panel .sp-opt-input{flex:1;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s}
+    .spintax-panel .sp-opt-input:focus{border-color:var(--accent)}
+    .spintax-panel .sp-opt-input::placeholder{color:var(--text-muted)}
+    .spintax-panel .sp-opt-input.sp-opt-filled{border-color:var(--accent);background:rgba(224,120,64,.05)}
+    .spintax-panel .sp-opt-remove{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;padding:4px;border-radius:4px;transition:all .12s}
+    .spintax-panel .sp-opt-remove:hover{color:var(--danger);background:var(--danger-dim)}
+    .spintax-panel .sp-add-opt{width:100%;padding:8px;border:1px dashed var(--border);border-radius:6px;background:none;color:var(--text-dim);cursor:pointer;font-size:12px;font-family:var(--sans);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px}
+    .spintax-panel .sp-add-opt:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+    /* Insert button */
+    .spintax-panel .sp-insert-btn{width:100%;padding:10px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;font-family:var(--sans);cursor:pointer;transition:all .15s;margin-top:4px}
+    .spintax-panel .sp-insert-btn:hover{background:#c96830}
+    .spintax-panel .sp-insert-btn:disabled{opacity:.4;cursor:not-allowed}
+    /* Templates tab */
+    .spintax-panel .sp-templates{padding:14px;display:none}
+    .spintax-panel .sp-templates.active{display:block}
+    .spintax-panel .sp-tpl-btn{width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface-hover);color:var(--text);cursor:pointer;font-size:11px;font-family:var(--sans);text-align:left;transition:all .15s;margin-bottom:6px}
+    .spintax-panel .sp-tpl-btn:hover{border-color:var(--accent);background:var(--accent-dim)}
+    .spintax-panel .sp-tpl-btn .sp-tpl-name{font-weight:500;margin-bottom:2px}
+    .spintax-panel .sp-tpl-btn .sp-tpl-code{font-family:var(--mono);font-size:10px;color:var(--text-muted)}
+
+    /* Emoji picker — native web component with dark theme */
+    .emoji-picker-wrap{position:absolute;top:calc(100% + 8px);right:0;z-index:200;display:none;box-shadow:0 12px 40px rgba(0,0,0,.5);border-radius:12px;overflow:hidden}
+    .emoji-picker-wrap.open{display:block}
+    emoji-picker{--emoji-size:1.4rem;--border-color:var(--border);--indicator-color:var(--accent);--input-border-color:var(--border);--outline-color:var(--accent);--num-columns:8;--category-emoji-size:1.2rem;height:400px;width:340px;--background:var(--surface);--input-font-color:var(--text);--input-placeholder-color:var(--text-muted);--category-font-color:var(--text-dim);--indicator-height:3px;--input-border-radius:8px;--input-padding:6px 10px;font-family:var(--sans)}
+
+    /* Rich text editor (contenteditable) */
+    .compose-editor{width:100%;min-height:160px;max-height:400px;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:12px;color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;outline:none;white-space:pre-wrap;word-break:break-word}
+    .compose-editor:focus{border-color:var(--accent)}
+    .compose-editor:empty::before{content:attr(data-placeholder);color:var(--text-muted);pointer-events:none}
+    .compose-editor h1{font-size:20px;font-weight:700;margin:4px 0}
+    .compose-editor h2{font-size:16px;font-weight:600;margin:3px 0}
+    .compose-editor ul,.compose-editor ol{padding-left:20px;margin:4px 0}
+    .compose-editor li{margin:2px 0}
+
+    /* Spintax preview */
+    .spintax-preview{margin-top:8px;padding:10px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:6px;font-size:12px;color:var(--text-dim);line-height:1.5;display:none;position:relative;max-height:100px;overflow-y:auto}
+    .spintax-preview.visible{display:block}
+    .spintax-preview .sp-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between}
+    .spintax-preview .sp-label button{background:none;border:none;color:var(--accent);cursor:pointer;font-size:10px;font-family:var(--mono)}
+    .spintax-preview .sp-text{color:var(--text);white-space:pre-wrap;word-break:break-word}
+    .spintax-highlight{color:var(--accent);font-weight:500}
+
+    /* Bottom bar: images, video, char count, emoji */
+    .compose-bottom{display:flex;align-items:center;gap:4px;padding:6px 8px;background:var(--surface-hover);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;margin-top:-1px}
+    .compose-bottom .cb-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px 6px;border-radius:4px;font-size:13px;transition:all .12s;display:flex;align-items:center;gap:4px}
+    .compose-bottom .cb-btn:hover{background:var(--bg);color:var(--text)}
+    .compose-bottom .cb-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .compose-bottom input[type="file"]{display:none}
+
+    .compose-tools{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .compose-tools label{font-size:11px;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;transition:all .15s}
+    .compose-tools label:hover{border-color:var(--accent);color:var(--text)}
+    .compose-tools input[type="file"]{display:none}
+    .image-previews{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+    .image-previews .img-thumb{width:48px;height:48px;border-radius:4px;object-fit:cover;border:1px solid var(--border);position:relative;cursor:pointer}
+    .img-thumb-wrap{position:relative;display:inline-block}
+    .img-thumb-wrap .img-remove{position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:var(--danger);color:#fff;border:none;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+    .char-count{font-family:var(--mono);font-size:10px;color:var(--text-muted);margin-left:auto}
+
+    /* Delivery pacing */
+    .pacing-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .pacing-row select,.pacing-row input[type="number"]{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:11px}
+    .pacing-row select:focus,.pacing-row input:focus{outline:none;border-color:var(--accent)}
+    .pacing-row label{font-size:11px;color:var(--text-dim)}
+    .pacing-row input[type="number"]{width:60px}
+
+    /* Groups section */
+    .groups-textarea{width:100%;min-height:100px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;color:var(--text);font-family:var(--mono);font-size:11px;resize:vertical;line-height:1.6}
+    .groups-textarea:focus{outline:none;border-color:var(--accent)}
+    .groups-textarea::placeholder{color:var(--text-muted)}
+    .groups-actions{display:flex;gap:8px;margin-top:10px;align-items:center}
+    .group-count{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-left:auto}
+    .group-list{max-height:200px;overflow-y:auto;margin-top:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg)}
+    .group-list:empty{display:none}
+    .group-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+    .group-item:last-child{border-bottom:none}
+    .group-item .group-url{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .group-item .group-remove{background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;padding:2px 4px;opacity:.6}
+    .group-item .group-remove:hover{opacity:1}
+
+    /* Schedule section */
+    .schedule-bar{border-top:1px solid var(--border);padding:18px;margin-top:0}
+    .schedule-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .schedule-row select,.schedule-row input[type="number"]{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:11px}
+    .schedule-row select:focus,.schedule-row input:focus{outline:none;border-color:var(--accent)}
+    .schedule-row label{font-size:11px;color:var(--text-dim);white-space:nowrap}
+    .schedule-row input[type="number"]{width:60px}
+    .schedule-row input[type="checkbox"]{accent-color:var(--accent)}
+    .schedule-opts{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+    .schedule-preview{font-family:var(--mono);font-size:11px;color:var(--info);margin-top:10px;padding:8px 12px;background:var(--info-dim);border-radius:6px;line-height:1.6}
+
+    /* Profile grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .3s,box-shadow .3s}
+    .card.running{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 4px 30px var(--accent-glow)}
+    .card.done{border-color:var(--success)}
+    .card.selected{border-left:3px solid var(--accent)}
+    .card.waiting{border-color:var(--info);border-style:dashed}
+    .card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+    .card-checkbox{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+    .profile-dot{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+    .profile-name{font-weight:500;font-size:14px;flex:1}
+    .profile-cooldown{font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-left:4px}
+    .card-status{font-family:var(--mono);font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:5px}
+    .status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .status-dot.idle{background:var(--text-muted)}
+    .status-dot.running{background:var(--accent);animation:pulse 1.5s ease infinite}
+    .status-dot.done{background:var(--success)}
+    .status-dot.waiting{background:var(--info);animation:pulse 2s ease infinite}
+    .profile-iframe{width:100%;height:560px;border:none;display:block;background:#fff}
+    .card-foot{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--border)}
+    .post-count{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);font-size:12px;color:var(--text);opacity:0;transform:translateY(10px);transition:all .25s;z-index:10000;pointer-events:none;max-width:400px}
+    .toast.show{opacity:1;transform:translateY(0)}
+    .toast.success{border-color:var(--success);color:var(--success)}
+    .toast.error{border-color:var(--danger);color:var(--danger)}
+    .toast.info{border-color:var(--info);color:var(--info)}
+
+    .empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:6px}
+    ::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <!-- Header -->
+    <div class="header">
+      <h1>Command <span>Center</span></h1>
+      <div class="header-meta">
+        <div><span class="live-dot"></span> connected</div>
+        <div id="profileCount">loading...</div>
+      </div>
+    </div>
+
+    <!-- Control bar -->
+    <div class="controls">
+      <div class="profile-dropdown">
+        <button class="profile-dropdown-btn" onclick="toggleDropdown()">
+          Profiles <span class="arrow">&#9654;</span>
+        </button>
+        <div class="profile-dropdown-menu" id="profileDropdown"></div>
+      </div>
+      <span class="sel-count" id="selCount">0 selected</span>
+      <button class="btn btn-post" id="postSelBtn" onclick="postSelected()">Post Selected</button>
+      <button class="btn btn-stop" id="stopSelBtn" onclick="stopSelected()">Stop Selected</button>
+      <div class="aggregate" id="aggText">loading...</div>
+    </div>
+
+    <!-- Unified command area -->
+    <div class="unified">
+      <div class="unified-header" onclick="toggleUnified()">
+        <h2><span class="toggle-arrow open" id="unifiedArrow">&#9654;</span> Unified Post &amp; Groups</h2>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-muted)">applies to selected profiles</span>
+      </div>
+      <div class="unified-body open" id="unifiedBody">
+        <div class="unified-cols">
+          <!-- Left: Post Composition — matches popup toolbar exactly -->
+          <div class="compose-section">
+            <h3>Post Content</h3>
+            <!-- Toolbar: B I U | H1 H2 | UL OL | Spintax emoji -->
+            <div class="compose-toolbar">
+              <button class="tb-btn" id="tbBold" title="Bold (Ctrl+B)" onmousedown="event.preventDefault()" onclick="execFmt('bold')"><svg viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
+              <button class="tb-btn" id="tbItalic" title="Italic (Ctrl+I)" onmousedown="event.preventDefault()" onclick="execFmt('italic')"><svg viewBox="0 0 24 24"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+              <button class="tb-btn" id="tbUnderline" title="Underline (Ctrl+U)" onmousedown="event.preventDefault()" onclick="execFmt('underline')"><svg viewBox="0 0 24 24"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg></button>
+              <span class="tb-sep"></span>
+              <button class="tb-btn" id="tbH1" title="Heading 1" onmousedown="event.preventDefault()" onclick="execHeading('H1')" style="font-size:12px;font-weight:700">H<sub>1</sub></button>
+              <button class="tb-btn" id="tbH2" title="Heading 2" onmousedown="event.preventDefault()" onclick="execHeading('H2')" style="font-size:12px;font-weight:700">H<sub>2</sub></button>
+              <span class="tb-sep"></span>
+              <button class="tb-btn" id="tbUL" title="Bulleted List" onmousedown="event.preventDefault()" onclick="execFmt('insertUnorderedList')"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>
+              <button class="tb-btn" id="tbOL" title="Numbered List" onmousedown="event.preventDefault()" onclick="execFmt('insertOrderedList')"><svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif" font-weight="700">1</text><text x="2" y="14" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif" font-weight="700">2</text><text x="2" y="20" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif" font-weight="700">3</text></svg></button>
+              <span class="tb-sep"></span>
+              <div class="tb-right" style="position:relative">
+                <button class="tb-btn tb-spintax" onclick="toggleSpintaxMenu()" title="Insert spintax"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg> Spintax</button>
+                <button class="tb-btn" title="Emoji" onclick="toggleEmojiPicker()" style="font-size:16px">&#128578;</button>
+                <!-- Spintax panel — matches popup's interactive editor -->
+                <div class="spintax-panel" id="spintaxMenu">
+                  <div class="sp-header">
+                    <h4>Spintax</h4>
+                    <div class="sp-tabs">
+                      <span class="sp-tab active" onclick="switchSpintaxTab('editor')">Editor</span>
+                      <span class="sp-tab" onclick="switchSpintaxTab('templates')">Templates &#9662;</span>
+                    </div>
+                    <button class="tb-btn" style="font-size:10px;padding:3px 8px;color:var(--info);min-width:auto" onclick="saveSpintaxTemplate()" title="Save current as template">&#128190; Save</button>
+                    <button class="sp-close" onclick="closeSpintaxMenu()">&times;</button>
+                  </div>
+                  <div class="sp-info">
+                    <span class="sp-info-icon">&#9432;</span>
+                    <div>Add variations for the selected text. One option will be chosen when posting.<br><span class="sp-example">{fast|quick|rapid}</span></div>
+                  </div>
+                  <!-- Editor tab -->
+                  <div class="sp-body" id="spintaxEditor">
+                    <div class="sp-options" id="spintaxOptions">
+                      <!-- Option inputs rendered by JS -->
+                    </div>
+                    <button class="sp-add-opt" onclick="addSpintaxOption()">+ Add option</button>
+                    <button class="sp-insert-btn" id="spintaxInsertBtn" onclick="insertSpintaxFromEditor()">Insert</button>
+                  </div>
+                  <!-- Templates tab (rendered dynamically) -->
+                  <div class="sp-templates" id="spintaxTemplates"></div>
+                </div>
+                <!-- Emoji picker — native web component -->
+                <div class="emoji-picker-wrap" id="emojiPickerWrap">
+                  <emoji-picker id="emojiPicker" class="dark"></emoji-picker>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rich text editor (contenteditable) -->
+            <div class="compose-editor" id="composeEditor" contenteditable="true" data-placeholder="What would you like to share?&#10;&#10;Use {spintax|syntax} for variations — each group gets a random pick."></div>
+
+            <!-- Bottom bar: media, emoji, char count -->
+            <div class="compose-bottom">
+              <label class="cb-btn" title="Add images">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                <input type="file" id="imageInput" multiple accept="image/*" onchange="handleImages(this)">
+              </label>
+              <label class="cb-btn" title="Add video">
+                <svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+                <input type="file" id="videoInput" accept="video/*" onchange="handleVideo(this)">
+              </label>
+              <span style="flex:1"></span>
+              <span class="char-count" id="charCount">0 characters</span>
+            </div>
+
+            <!-- Spintax live preview -->
+            <div class="spintax-preview" id="spintaxPreview">
+              <div class="sp-label">
+                <span>&#10023; Spintax preview (random expansion)</span>
+                <button onclick="refreshSpintaxPreview()">&#8635; Refresh</button>
+              </div>
+              <div class="sp-text" id="spintaxPreviewText"></div>
+            </div>
+
+            <div class="image-previews" id="imagePreviews"></div>
+            <div id="videoInfo" style="margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--text-dim)"></div>
+
+            <!-- Delivery pacing -->
+            <div class="pacing-row">
+              <label>Delivery:</label>
+              <select id="pacingMode" onchange="updatePacingUI()">
+                <option value="throttled">Throttled</option>
+                <option value="continuous">Continuous</option>
+              </select>
+              <span id="pacingOpts">
+                <label>Batch:</label>
+                <input type="number" id="batchSize" value="3" min="1" max="50">
+                <label>Wait (min):</label>
+                <input type="number" id="waitMinutes" value="5" min="1" max="120">
+                <label><input type="checkbox" id="randomizeWait" checked> Randomize</label>
+              </span>
+            </div>
+          </div>
+
+          <!-- Right: Group Management -->
+          <div class="groups-section">
+            <h3>Group URLs</h3>
+            <textarea class="groups-textarea" id="groupsTextarea" placeholder="Paste Facebook group URLs here, one per line...&#10;https://facebook.com/groups/example1&#10;https://facebook.com/groups/example2"></textarea>
+            <div class="groups-actions">
+              <button class="btn btn-info btn-sm" onclick="addGroups()">+ Add Groups</button>
+              <button class="btn btn-sm" style="background:var(--surface-hover);color:var(--text-dim);border:1px solid var(--border)" onclick="clearGroups()">Clear All</button>
+              <button class="btn btn-post btn-sm" onclick="syncGroupsToSelected(event)">Sync to Selected</button>
+              <span class="group-count" id="groupCount">0 groups</span>
+            </div>
+            <div class="group-list" id="groupList"></div>
+          </div>
+        </div>
+
+        <!-- Schedule bar -->
+        <div class="schedule-bar">
+          <h3 class="schedule-section" style="margin-bottom:10px"><span style="font-size:12px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px">Distribution Strategy</span></h3>
+          <div class="schedule-row">
+            <select id="scheduleStrategy" onchange="updateScheduleUI()">
+              <option value="immediate">Immediate (all at once)</option>
+              <option value="sequential" selected>Sequential (one at a time)</option>
+              <option value="staggered">Staggered (delayed starts)</option>
+              <option value="time-window">Time Window (spread over hours)</option>
+              <option value="group-spread">Group Spread (split groups)</option>
+            </select>
+          </div>
+          <div class="schedule-opts" id="scheduleOpts">
+            <!-- Populated by updateScheduleUI() -->
+          </div>
+          <div class="schedule-preview" id="schedulePreview" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profiles section (collapsible) -->
+    <div class="unified">
+      <div class="unified-header" onclick="toggleProfiles()">
+        <h2><span class="toggle-arrow open" id="profilesArrow">&#9654;</span> Profiles <span id="profileCount" style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-left:8px"></span></h2>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="profilesHeaderMeta" style="font-family:var(--mono);font-size:10px;color:var(--text-muted)"></span>
+          <button class="btn btn-sm" style="background:var(--accent);color:#fff;font-size:11px;padding:4px 12px" onclick="event.stopPropagation();showAddProfileModal()">+ Add Profile</button>
+        </div>
+      </div>
+      <div class="unified-body open" id="profilesBody">
+        <div class="grid" id="grid"><div class="empty">loading profiles...</div></div>
+      </div>
+    </div>
+
+    <!-- Add Profile Modal -->
+    <div id="addProfileModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:90vw">
+        <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">Add New Profile</h3>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Profile Name</label>
+            <input id="newProfileName" type="text" placeholder="e.g. Account 1" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--sans)">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Timezone</label>
+            <select id="newProfileTz" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--sans)">
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/Denver">America/Denver</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="Europe/London">Europe/London</option>
+              <option value="Europe/Paris">Europe/Paris</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+              <option value="Asia/Dubai">Asia/Dubai</option>
+              <option value="Asia/Kolkata">Asia/Kolkata</option>
+              <option value="Asia/Tokyo">Asia/Tokyo</option>
+              <option value="Australia/Sydney">Australia/Sydney</option>
+              <option value="Africa/Cairo">Africa/Cairo</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Language</label>
+            <select id="newProfileLang" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--sans)">
+              <option value="en-US">English (US)</option>
+              <option value="en-GB">English (UK)</option>
+              <option value="ar">Arabic</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="pt-BR">Portuguese (Brazil)</option>
+              <option value="hi">Hindi</option>
+              <option value="ja">Japanese</option>
+              <option value="zh-CN">Chinese</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Network</label>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);flex:1;font-size:13px;transition:all .15s" id="netDirect" onclick="setNetworkMode('direct')">
+                <input type="radio" name="netMode" value="direct" checked style="accent-color:var(--accent)"> Direct
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);flex:1;font-size:13px;transition:all .15s" id="netTor" onclick="setNetworkMode('tor')">
+                <input type="radio" name="netMode" value="tor" style="accent-color:var(--accent)"> Tor Network
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);flex:1;font-size:13px;transition:all .15s" id="netProxy" onclick="setNetworkMode('proxy')">
+                <input type="radio" name="netMode" value="proxy" style="accent-color:var(--accent)"> Proxy
+              </label>
+            </div>
+            <div id="torInfo" style="display:none;font-size:11px;color:var(--success);padding:8px 12px;background:var(--success-dim);border-radius:6px;margin-bottom:8px">
+              Each profile gets its own Tor circuit with a unique exit IP. Free, no proxy needed.
+            </div>
+            <div id="proxyInput" style="display:none">
+              <input id="newProfileProxy" type="text" placeholder="socks5://host:port:user:pass" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--mono)">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:4px">Format: socks5://host:port:user:pass or http://host:port</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-post" onclick="createProfile()" style="flex:1">Create & Open Facebook</button>
+            <button class="btn" onclick="hideAddProfileModal()" style="flex:0;background:var(--surface-hover);color:var(--text-dim)">Cancel</button>
+          </div>
+          <div id="addProfileError" style="display:none;font-size:12px;color:var(--danger);margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Profile Confirmation -->
+    <div id="deleteProfileModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:360px;max-width:90vw;text-align:center">
+        <h3 style="font-size:16px;font-weight:600;margin-bottom:8px">Delete Profile?</h3>
+        <p id="deleteProfileName" style="font-size:13px;color:var(--text-dim);margin-bottom:16px"></p>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-stop" onclick="confirmDeleteProfile()">Delete</button>
+          <button class="btn" onclick="hideDeleteModal()" style="background:var(--surface-hover);color:var(--text-dim)">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    var DASHBOARD = window.location.origin;
+    var POSTER = 'http://localhost:3333';
+    var profiles = [];
+    var portMap = {};
+    var selectedIds = JSON.parse(localStorage.getItem('cc_selectedIds') || '[]');
+    var groupUrls = JSON.parse(localStorage.getItem('cc_groupUrls') || '[]');
+    var imageData = []; // array of { base64, name }
+    var videoFile = null;
+    var profileCooldowns = JSON.parse(localStorage.getItem('cc_cooldowns') || '{}');
+    var scheduledLaunches = {}; // from server polling
+
+    // ─── API helper ───
+    function api(method, path, body) {
+      var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      return fetch(DASHBOARD + path, opts).then(function(r) { return r.json(); });
+    }
+
+    // ─── Profile loading ───
+    async function loadProfiles() {
+      try {
+        var res = await api('GET', '/api/profiles');
+        profiles = res.profiles || [];
+        try {
+          var pm = await fetch(POSTER + '/api/profile-ports').then(function(r) { return r.json(); });
+          portMap = pm || {};
+        } catch(e) { portMap = {}; }
+
+        // Clean up selectedIds that no longer exist
+        var validIds = profiles.map(function(p) { return p.id; });
+        selectedIds = selectedIds.filter(function(id) { return validIds.indexOf(id) !== -1; });
+        if (selectedIds.length === 0 && profiles.length > 0) {
+          selectedIds = validIds.slice(); // select all by default on first load
+        }
+        saveSelection();
+
+        document.getElementById('profileCount').textContent = profiles.length + ' profile' + (profiles.length !== 1 ? 's' : '');
+        renderGrid();
+        renderDropdown();
+        updateSelCount();
+        renderGroupList();
+        startPolling();
+        updateScheduleUI();
+      } catch (e) {
+        document.getElementById('grid').innerHTML = '<div class="empty">Could not connect</div>';
+      }
+    }
+
+    // ─── Selection ───
+    function saveSelection() {
+      localStorage.setItem('cc_selectedIds', JSON.stringify(selectedIds));
+    }
+    function toggleProfile(id) {
+      var idx = selectedIds.indexOf(id);
+      if (idx === -1) selectedIds.push(id);
+      else selectedIds.splice(idx, 1);
+      saveSelection();
+      updateCardSelection();
+      renderDropdown();
+      updateSelCount();
+      updateSchedulePreview();
+    }
+    function selectAll() {
+      selectedIds = profiles.map(function(p) { return p.id; });
+      saveSelection(); updateCardSelection(); renderDropdown(); updateSelCount(); updateSchedulePreview();
+    }
+    function deselectAll() {
+      selectedIds = [];
+      saveSelection(); updateCardSelection(); renderDropdown(); updateSelCount(); updateSchedulePreview();
+    }
+    function updateSelCount() {
+      document.getElementById('selCount').textContent = selectedIds.length + '/' + profiles.length + ' selected';
+      var meta = document.getElementById('profilesHeaderMeta');
+      if (meta) meta.textContent = selectedIds.length + '/' + profiles.length + ' selected — click to collapse';
+    }
+    function updateCardSelection() {
+      profiles.forEach(function(p) {
+        var card = document.getElementById('card-' + p.id);
+        var cb = document.getElementById('cb-' + p.id);
+        if (card) {
+          if (selectedIds.indexOf(p.id) !== -1) card.classList.add('selected');
+          else card.classList.remove('selected');
+        }
+        if (cb) cb.checked = selectedIds.indexOf(p.id) !== -1;
+      });
+    }
+
+    // ─── Profile management (Ghost Browser) ───
+    var currentNetMode = 'direct';
+    function setNetworkMode(mode) {
+      currentNetMode = mode;
+      document.getElementById('torInfo').style.display = mode === 'tor' ? 'block' : 'none';
+      document.getElementById('proxyInput').style.display = mode === 'proxy' ? 'block' : 'none';
+      ['netDirect','netTor','netProxy'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.borderColor = id === 'net' + mode.charAt(0).toUpperCase() + mode.slice(1) ? 'var(--accent)' : 'var(--border)';
+      });
+    }
+    function showAddProfileModal() {
+      document.getElementById('addProfileModal').style.display = 'flex';
+      document.getElementById('newProfileName').value = '';
+      document.getElementById('newProfileProxy').value = '';
+      document.getElementById('addProfileError').style.display = 'none';
+      currentNetMode = 'direct';
+      setNetworkMode('direct');
+      document.querySelector('input[name="netMode"][value="direct"]').checked = true;
+      document.getElementById('newProfileName').focus();
+    }
+    function hideAddProfileModal() {
+      document.getElementById('addProfileModal').style.display = 'none';
+    }
+    async function createProfile() {
+      var name = document.getElementById('newProfileName').value.trim();
+      if (!name) { name = 'Account ' + (profiles.length + 1); }
+      var tz = document.getElementById('newProfileTz').value;
+      var lang = document.getElementById('newProfileLang').value;
+      var proxyStr = document.getElementById('newProfileProxy').value.trim();
+      var errEl = document.getElementById('addProfileError');
+
+      var body = { name: name, timezone: tz, locale: lang, spoofTimezone: tz, spoofLanguage: lang, torEnabled: currentNetMode === 'tor' };
+
+      // Parse proxy string
+      if (currentNetMode === 'proxy' && proxyStr) {
+        try {
+          var proxy = parseProxyString(proxyStr);
+          if (proxy) body.proxy = proxy;
+        } catch(e) {
+          errEl.textContent = 'Invalid proxy format. Use socks5://host:port:user:pass';
+          errEl.style.display = 'block';
+          return;
+        }
+      }
+
+      try {
+        errEl.style.display = 'none';
+        var result = await api('POST', '/api/profiles/create', body);
+        if (result.error) throw new Error(result.error);
+        hideAddProfileModal();
+        await loadProfiles();
+        // Open Facebook in the new profile
+        openFacebookForProfile(result.id || result.profile?.id);
+      } catch(e) {
+        errEl.textContent = 'Failed: ' + e.message;
+        errEl.style.display = 'block';
+      }
+    }
+
+    function parseProxyString(str) {
+      str = str.trim();
+      var type = 'http';
+      if (str.startsWith('socks5://')) { type = 'socks5'; str = str.slice(9); }
+      else if (str.startsWith('http://')) { type = 'http'; str = str.slice(7); }
+      var parts = str.split(':');
+      if (parts.length < 2) return null;
+      var proxy = { type: type, host: parts[0], port: parseInt(parts[1]) };
+      if (parts.length >= 4) { proxy.username = parts[2]; proxy.password = parts[3]; }
+      return proxy;
+    }
+
+    async function openFacebookForProfile(profileId) {
+      if (!profileId) return;
+      try {
+        await api('POST', '/api/profiles/' + profileId + '/open-facebook');
+      } catch(e) { console.warn('Could not open Facebook:', e); }
+    }
+
+    var deleteTargetId = null;
+    function showDeleteModal(id, name) {
+      deleteTargetId = id;
+      document.getElementById('deleteProfileName').textContent = 'This will delete "' + name + '" and all its cookies/data.';
+      document.getElementById('deleteProfileModal').style.display = 'flex';
+    }
+    function hideDeleteModal() {
+      deleteTargetId = null;
+      document.getElementById('deleteProfileModal').style.display = 'none';
+    }
+    async function confirmDeleteProfile() {
+      if (!deleteTargetId) return;
+      try {
+        await api('DELETE', '/api/profiles/' + deleteTargetId);
+        hideDeleteModal();
+        await loadProfiles();
+      } catch(e) { alert('Failed to delete: ' + e.message); }
+    }
+
+    // ─── Dropdown ───
+    function toggleDropdown() {
+      var menu = document.getElementById('profileDropdown');
+      menu.classList.toggle('open');
+    }
+    // Close dropdown on outside click
+    document.addEventListener('click', function(e) {
+      var dd = document.querySelector('.profile-dropdown');
+      if (dd && !dd.contains(e.target)) {
+        document.getElementById('profileDropdown').classList.remove('open');
+      }
+    });
+    function renderDropdown() {
+      var menu = document.getElementById('profileDropdown');
+      var html = '<div class="dd-item dd-action" onclick="selectAll()">Select All</div>' +
+                 '<div class="dd-item dd-action" onclick="deselectAll()">Deselect All</div>';
+      profiles.forEach(function(p) {
+        var checked = selectedIds.indexOf(p.id) !== -1;
+        var color = p.color || '#4A90D9';
+        html += '<div class="dd-item" onclick="toggleProfile(\'' + p.id + '\')">' +
+                  '<div class="dd-check ' + (checked ? 'checked' : '') + '">' + (checked ? '&#10003;' : '') + '</div>' +
+                  '<div class="dd-dot" style="background:' + esc(color) + '"></div>' +
+                  '<span>' + esc(p.name) + '</span>' +
+                '</div>';
+      });
+      menu.innerHTML = html;
+    }
+
+    // ─── Unified area toggle ───
+    function toggleUnified() {
+      var body = document.getElementById('unifiedBody');
+      var arrow = document.getElementById('unifiedArrow');
+      body.classList.toggle('open');
+      arrow.classList.toggle('open');
+    }
+    function toggleProfiles() {
+      var body = document.getElementById('profilesBody');
+      var arrow = document.getElementById('profilesArrow');
+      body.classList.toggle('open');
+      arrow.classList.toggle('open');
+    }
+
+    // ─── Grid rendering ───
+    function renderGrid() {
+      var grid = document.getElementById('grid');
+      if (!profiles.length) { grid.innerHTML = '<div class="empty">No profiles found</div>'; return; }
+
+      grid.innerHTML = profiles.map(function(p) {
+        var initial = (p.name || '?')[0].toUpperCase();
+        var color = p.color || '#4A90D9';
+        var port = portMap[p.id] || 3333;
+        var iframeSrc = 'http://localhost:' + port + '/';
+        var checked = selectedIds.indexOf(p.id) !== -1;
+        var cooldown = profileCooldowns[p.id];
+        var cooldownText = cooldown ? formatCooldown(cooldown) : '';
+
+        return '<div class="card' + (checked ? ' selected' : '') + '" id="card-' + p.id + '">' +
+          '<div class="card-head">' +
+            '<input type="checkbox" class="card-checkbox" id="cb-' + p.id + '" ' + (checked ? 'checked' : '') + ' onchange="toggleProfile(\'' + p.id + '\')">' +
+            '<div class="profile-dot" style="background:' + esc(color) + '">' + esc(initial) + '</div>' +
+            '<div class="profile-name">' + esc(p.name) + ' <small style="color:var(--text-muted);font-size:10px">:' + port + '</small>' +
+              (cooldownText ? '<span class="profile-cooldown">' + cooldownText + '</span>' : '') +
+            '</div>' +
+            '<div class="card-status" id="status-' + p.id + '"><span class="status-dot idle"></span> idle</div>' +
+          '</div>' +
+          '<div><iframe src="' + iframeSrc + '" class="profile-iframe" id="iframe-' + p.id + '"></iframe></div>' +
+          '<div class="card-foot">' +
+            '<button class="btn btn-info btn-sm" onclick="openFacebookForProfile(\'' + p.id + '\')" title="Open Facebook in this profile">FB Login</button>' +
+            '<button class="btn btn-post btn-sm" onclick="postOne(\'' + p.id + '\')">Post</button>' +
+            '<button class="btn btn-stop btn-sm" onclick="stopOne(\'' + p.id + '\')">Stop</button>' +
+            '<span class="post-count" id="count-' + p.id + '"></span>' +
+            '<button class="btn btn-xs" onclick="showDeleteModal(\'' + p.id + '\', \'' + esc(p.name).replace(/'/g, "\\'") + '\')" style="margin-left:auto;background:transparent;color:var(--text-muted);font-size:10px" title="Delete profile">&times;</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ─── Cooldown tracking ───
+    function formatCooldown(timestamp) {
+      var diff = Date.now() - timestamp;
+      if (diff < 60000) return 'just now';
+      if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+      return Math.floor(diff / 86400000) + 'd ago';
+    }
+    function setCooldown(profileId) {
+      profileCooldowns[profileId] = Date.now();
+      localStorage.setItem('cc_cooldowns', JSON.stringify(profileCooldowns));
+    }
+
+    // ─── Rich text editor + Toolbar ───
+    var editor = null;
+    function getEditor() { return editor || (editor = document.getElementById('composeEditor')); }
+
+    // Format commands via execCommand (real rich text)
+    function execFmt(cmd) {
+      getEditor().focus();
+      document.execCommand(cmd, false, null);
+      updateToolbarState();
+      updateComposeState();
+    }
+    function execHeading(tag) {
+      getEditor().focus();
+      document.execCommand('formatBlock', false, tag);
+      updateToolbarState();
+      updateComposeState();
+    }
+
+    // Track active formatting state
+    function updateToolbarState() {
+      var cmds = { tbBold: 'bold', tbItalic: 'italic', tbUnderline: 'underline' };
+      for (var id in cmds) {
+        var el = document.getElementById(id);
+        if (el) {
+          if (document.queryCommandState(cmds[id])) el.classList.add('active');
+          else el.classList.remove('active');
+        }
+      }
+      // Heading state
+      var block = document.queryCommandValue('formatBlock');
+      var h1 = document.getElementById('tbH1');
+      var h2 = document.getElementById('tbH2');
+      if (h1) { if (block === 'h1') h1.classList.add('active'); else h1.classList.remove('active'); }
+      if (h2) { if (block === 'h2') h2.classList.add('active'); else h2.classList.remove('active'); }
+      // List state
+      var ul = document.getElementById('tbUL');
+      var ol = document.getElementById('tbOL');
+      if (ul) { if (document.queryCommandState('insertUnorderedList')) ul.classList.add('active'); else ul.classList.remove('active'); }
+      if (ol) { if (document.queryCommandState('insertOrderedList')) ol.classList.add('active'); else ol.classList.remove('active'); }
+    }
+
+    // Insert text/HTML at cursor in contenteditable
+    function insertAtCursor(str) {
+      getEditor().focus();
+      document.execCommand('insertText', false, str);
+      updateComposeState();
+    }
+    function insertHtmlAtCursor(html) {
+      getEditor().focus();
+      document.execCommand('insertHTML', false, html);
+      updateComposeState();
+    }
+
+    // Get plain text from editor (what gets sent to campaign runner)
+    function getEditorText() {
+      var el = getEditor();
+      // Get inner HTML and convert to plain text like the campaign runner does
+      var html = el.innerHTML;
+      if (!html || html === '<br>' || html === '<div><br></div>') return '';
+      return html
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/h[1-6]>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    // Spintax interactive editor
+    var spintaxOpts = ['', ''];
+    var savedSelection = null;
+
+    function saveEditorSelection() {
+      var sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        var range = sel.getRangeAt(0);
+        var ed = getEditor();
+        if (ed && ed.contains(range.startContainer)) {
+          savedSelection = range.cloneRange();
+          return sel.toString();
+        }
+      }
+      savedSelection = null;
+      return '';
+    }
+    function restoreEditorSelection() {
+      if (savedSelection) {
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedSelection);
+      }
+    }
+
+    function toggleSpintaxMenu() {
+      closeEmojiPicker();
+      var panel = document.getElementById('spintaxMenu');
+      if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        return;
+      }
+      // Capture selection before opening
+      var selectedText = saveEditorSelection();
+      spintaxOpts = selectedText ? [selectedText, ''] : ['', ''];
+      renderSpintaxOptions();
+      switchSpintaxTab('editor');
+      panel.classList.add('open');
+      // Focus first empty input
+      setTimeout(function() {
+        var inputs = document.querySelectorAll('.sp-opt-input');
+        for (var i = 0; i < inputs.length; i++) {
+          if (!inputs[i].value) { inputs[i].focus(); break; }
+        }
+        if (inputs.length && inputs[0].value && !inputs[1].value) inputs[1].focus();
+      }, 50);
+    }
+    function closeSpintaxMenu() {
+      document.getElementById('spintaxMenu').classList.remove('open');
+    }
+
+    function switchSpintaxTab(tab) {
+      var editorEl = document.getElementById('spintaxEditor');
+      var templatesEl = document.getElementById('spintaxTemplates');
+      var tabs = document.querySelectorAll('.sp-tab');
+      if (tab === 'editor') {
+        editorEl.style.display = 'block';
+        templatesEl.classList.remove('active');
+        tabs[0].classList.add('active');
+        tabs[1].classList.remove('active');
+      } else {
+        editorEl.style.display = 'none';
+        renderSpintaxTemplatesTab();
+        templatesEl.classList.add('active');
+        tabs[0].classList.remove('active');
+        tabs[1].classList.add('active');
+      }
+    }
+
+    function renderSpintaxOptions() {
+      var container = document.getElementById('spintaxOptions');
+      container.innerHTML = spintaxOpts.map(function(val, i) {
+        var filled = val ? ' sp-opt-filled' : '';
+        var placeholder = i === 0 ? 'Original text' : 'Option ' + (i + 1);
+        return '<div class="sp-opt-row">' +
+          '<span class="sp-opt-drag">&#9776;</span>' +
+          '<input class="sp-opt-input' + filled + '" value="' + esc(val) + '" placeholder="' + placeholder + '" oninput="updateSpintaxOpt(' + i + ',this.value)" onkeydown="spintaxOptKey(event,' + i + ')">' +
+          (spintaxOpts.length > 2 ? '<button class="sp-opt-remove" onclick="removeSpintaxOpt(' + i + ')">&times;</button>' : '<span style="width:24px"></span>') +
+        '</div>';
+      }).join('');
+      updateSpintaxInsertBtn();
+    }
+    function updateSpintaxOpt(idx, val) {
+      spintaxOpts[idx] = val;
+      var input = document.querySelectorAll('.sp-opt-input')[idx];
+      if (input) {
+        if (val) input.classList.add('sp-opt-filled');
+        else input.classList.remove('sp-opt-filled');
+      }
+      updateSpintaxInsertBtn();
+    }
+    function addSpintaxOption() {
+      spintaxOpts.push('');
+      renderSpintaxOptions();
+      var inputs = document.querySelectorAll('.sp-opt-input');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+    }
+    function removeSpintaxOpt(idx) {
+      spintaxOpts.splice(idx, 1);
+      renderSpintaxOptions();
+    }
+    function spintaxOptKey(e, idx) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (idx === spintaxOpts.length - 1) addSpintaxOption();
+        else {
+          var inputs = document.querySelectorAll('.sp-opt-input');
+          if (inputs[idx + 1]) inputs[idx + 1].focus();
+        }
+      }
+    }
+    function updateSpintaxInsertBtn() {
+      var btn = document.getElementById('spintaxInsertBtn');
+      var filled = spintaxOpts.filter(function(o) { return o.trim().length > 0; });
+      btn.disabled = filled.length < 2;
+    }
+
+    function insertSpintaxFromEditor() {
+      var filled = spintaxOpts.filter(function(o) { return o.trim().length > 0; });
+      if (filled.length < 2) return;
+      var spintax = '{' + filled.join('|') + '}';
+      closeSpintaxMenu();
+      // Restore selection and replace with spintax
+      restoreEditorSelection();
+      if (savedSelection && savedSelection.toString().length > 0) {
+        document.execCommand('insertText', false, spintax);
+      } else {
+        insertAtCursor(spintax);
+      }
+      updateComposeState();
+    }
+
+    function insertSpintax(template) {
+      closeSpintaxMenu();
+      restoreEditorSelection();
+      insertAtCursor(template);
+    }
+
+    // Template save/load — uses same localStorage key as popup: spintax_templates_v1
+    var TEMPLATES_KEY = 'spintax_templates_v1';
+    function loadSpintaxTemplates() {
+      try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY)) || []; }
+      catch(e) { return []; }
+    }
+    function saveSpintaxTemplates(arr) {
+      try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(arr)); } catch(e) {}
+    }
+    function saveSpintaxTemplate() {
+      var filled = spintaxOpts.filter(function(o) { return o.trim().length > 0; });
+      if (filled.length < 2) {
+        showToast('Add at least 2 options first', 'error');
+        return;
+      }
+      var spintax = '{' + filled.join('|') + '}';
+      var name = prompt('Template name:');
+      if (!name) return;
+      var templates = loadSpintaxTemplates();
+      templates.push({ name: name, content: spintax, created: Date.now() });
+      saveSpintaxTemplates(templates);
+      renderSpintaxTemplatesTab();
+      showToast('Template "' + name + '" saved', 'success');
+    }
+    function deleteSpintaxTemplate(idx) {
+      var templates = loadSpintaxTemplates();
+      templates.splice(idx, 1);
+      saveSpintaxTemplates(templates);
+      renderSpintaxTemplatesTab();
+    }
+    function renderSpintaxTemplatesTab() {
+      var container = document.getElementById('spintaxTemplates');
+      var templates = loadSpintaxTemplates();
+      if (templates.length === 0) {
+        container.innerHTML = '<div style="padding:20px 14px;text-align:center;color:var(--text-muted);font-size:12px">No templates saved<br><span style="font-size:10px;margin-top:4px;display:block">Create spintax options and click Save</span></div>';
+        return;
+      }
+      container.innerHTML = templates.map(function(t, i) {
+        return '<div class="sp-tpl-btn" style="display:flex;align-items:center;gap:8px">' +
+          '<div style="flex:1;cursor:pointer" onclick="insertSpintax(\'' + esc(t.content).replace(/'/g, "\\'") + '\')">' +
+            '<div class="sp-tpl-name">' + esc(t.name) + '</div>' +
+            '<div class="sp-tpl-code">' + esc(t.content) + '</div>' +
+          '</div>' +
+          '<button class="sp-opt-remove" onclick="deleteSpintaxTemplate(' + i + ')" title="Delete">&times;</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    // Emoji picker — native web component (emoji-picker-element)
+    var emojiPickerReady = false;
+    function toggleEmojiPicker() {
+      closeSpintaxMenu();
+      var wrap = document.getElementById('emojiPickerWrap');
+      if (wrap.classList.contains('open')) {
+        wrap.classList.remove('open');
+        return;
+      }
+      // Save editor selection before opening
+      saveEditorSelection();
+      if (!emojiPickerReady) {
+        var picker = document.getElementById('emojiPicker');
+        picker.addEventListener('emoji-click', function(e) {
+          restoreEditorSelection();
+          insertAtCursor(e.detail.unicode);
+          wrap.classList.remove('open');
+        });
+        emojiPickerReady = true;
+      }
+      wrap.classList.add('open');
+    }
+    function closeEmojiPicker() {
+      document.getElementById('emojiPickerWrap').classList.remove('open');
+    }
+
+    // Close panels on outside click
+    document.addEventListener('click', function(e) {
+      var tbRight = document.querySelector('.tb-right');
+      if (tbRight && !tbRight.contains(e.target)) {
+        closeSpintaxMenu();
+        closeEmojiPicker();
+      }
+    });
+
+    // Spintax live preview
+    function expandSpintaxPreview(text) {
+      if (!text) return '';
+      return text.replace(/\{([^{}]+)\}/g, function(match, content) {
+        var options = content.split('|').map(function(o) { return o.trim(); }).filter(function(o) { return o.length > 0; });
+        if (options.length > 1) return options[Math.floor(Math.random() * options.length)];
+        return match;
+      });
+    }
+    function refreshSpintaxPreview() {
+      var text = getEditorText();
+      var el = document.getElementById('spintaxPreviewText');
+      if (!text || text.indexOf('{') === -1) {
+        document.getElementById('spintaxPreview').classList.remove('visible');
+        return;
+      }
+      document.getElementById('spintaxPreview').classList.add('visible');
+      el.textContent = expandSpintaxPreview(text);
+    }
+    function updateComposeState() {
+      var text = getEditorText();
+      document.getElementById('charCount').textContent = text.length + ' characters';
+      refreshSpintaxPreview();
+      updateToolbarState();
+    }
+
+    // Wire up editor events
+    document.addEventListener('DOMContentLoaded', function() {
+      var ed = document.getElementById('composeEditor');
+      ed.addEventListener('input', updateComposeState);
+      ed.addEventListener('mouseup', updateToolbarState);
+      ed.addEventListener('keyup', function(e) {
+        updateToolbarState();
+        if (e.key === '{' || e.key === '|' || e.key === '}') refreshSpintaxPreview();
+      });
+    });
+
+    // ─── Image handling ───
+    function handleImages(input) {
+      var files = input.files;
+      for (var i = 0; i < files.length; i++) {
+        (function(file) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            imageData.push({ base64: e.target.result, name: file.name });
+            renderImagePreviews();
+          };
+          reader.readAsDataURL(file);
+        })(files[i]);
+      }
+      input.value = '';
+    }
+    function removeImage(idx) {
+      imageData.splice(idx, 1);
+      renderImagePreviews();
+    }
+    function renderImagePreviews() {
+      var container = document.getElementById('imagePreviews');
+      container.innerHTML = imageData.map(function(img, i) {
+        return '<div class="img-thumb-wrap">' +
+          '<img src="' + img.base64 + '" class="img-thumb" title="' + esc(img.name) + '">' +
+          '<button class="img-remove" onclick="removeImage(' + i + ')">x</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ─── Video handling ───
+    function handleVideo(input) {
+      var file = input.files[0];
+      if (!file) return;
+      videoFile = file;
+      document.getElementById('videoInfo').textContent = 'Video: ' + file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)';
+    }
+
+
+
+    // ─── Pacing UI ───
+    function updatePacingUI() {
+      var mode = document.getElementById('pacingMode').value;
+      document.getElementById('pacingOpts').style.display = mode === 'throttled' ? '' : 'none';
+    }
+
+    // ─── Group management ───
+    function addGroups() {
+      var textarea = document.getElementById('groupsTextarea');
+      var lines = textarea.value.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l && l.indexOf('facebook.com/groups/') !== -1; });
+      lines.forEach(function(url) {
+        if (groupUrls.indexOf(url) === -1) groupUrls.push(url);
+      });
+      textarea.value = '';
+      localStorage.setItem('cc_groupUrls', JSON.stringify(groupUrls));
+      renderGroupList();
+      updateSchedulePreview();
+    }
+    function removeGroup(idx) {
+      groupUrls.splice(idx, 1);
+      localStorage.setItem('cc_groupUrls', JSON.stringify(groupUrls));
+      renderGroupList();
+      updateSchedulePreview();
+    }
+    function clearGroups() {
+      groupUrls = [];
+      localStorage.setItem('cc_groupUrls', JSON.stringify(groupUrls));
+      renderGroupList();
+      updateSchedulePreview();
+    }
+    function renderGroupList() {
+      var container = document.getElementById('groupList');
+      document.getElementById('groupCount').textContent = groupUrls.length + ' group' + (groupUrls.length !== 1 ? 's' : '');
+      if (!groupUrls.length) { container.innerHTML = ''; return; }
+      container.innerHTML = groupUrls.map(function(url, i) {
+        var shortUrl = url.replace(/https?:\/\/(www\.)?facebook\.com\/groups\//, '');
+        return '<div class="group-item">' +
+          '<span class="group-url" title="' + esc(url) + '">' + esc(shortUrl) + '</span>' +
+          '<button class="group-remove" onclick="removeGroup(' + i + ')">&#10005;</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    function syncGroupsToSelected(e) {
+      if (!groupUrls.length) { showToast('No groups to sync', 'error'); return; }
+      if (!selectedIds.length) { showToast('No profiles selected', 'error'); return; }
+      var btn = e ? e.target : document.querySelector('.groups-actions .btn-post');
+      btn.disabled = true; btn.textContent = 'Syncing...';
+      api('POST', '/api/dashboard/sync-groups', {
+        profileIds: selectedIds,
+        urls: groupUrls,
+        listName: 'Dashboard Groups'
+      }).then(function(res) {
+        if (res.success) {
+          showToast('Groups synced to ' + selectedIds.length + ' profiles — refreshing...', 'success');
+          // Refresh iframes so they re-read storage with the new groups
+          refreshSelectedIframes();
+        }
+        else showToast('Sync error: ' + (res.error || 'unknown'), 'error');
+      }).catch(function(e) { showToast('Error: ' + e.message, 'error'); })
+        .finally(function() { btn.disabled = false; btn.textContent = 'Sync to Selected'; });
+    }
+
+    function refreshSelectedIframes() {
+      selectedIds.forEach(function(id) {
+        var iframe = document.getElementById('iframe-' + id);
+        if (iframe) {
+          // Reload the iframe to force re-read from storage
+          var src = iframe.src;
+          iframe.src = 'about:blank';
+          setTimeout(function() { iframe.src = src; }, 100);
+        }
+      });
+    }
+
+    // ─── Schedule UI ───
+    function updateScheduleUI() {
+      var strategy = document.getElementById('scheduleStrategy').value;
+      var opts = document.getElementById('scheduleOpts');
+      var html = '';
+
+      if (strategy === 'sequential') {
+        html = '<label>Rest between profiles (min):</label>' +
+               '<input type="number" id="restMinutes" value="20" min="1" max="120" oninput="updateSchedulePreview()">' +
+               '<label><input type="checkbox" id="schedRandomize" checked onchange="updateSchedulePreview()"> Randomize (&plusmn;30%)</label>';
+      } else if (strategy === 'staggered') {
+        html = '<label>Delay between starts (min):</label>' +
+               '<input type="number" id="staggerMinutes" value="20" min="1" max="120" oninput="updateSchedulePreview()">' +
+               '<label><input type="checkbox" id="schedRandomize" checked onchange="updateSchedulePreview()"> Randomize (&plusmn;20%)</label>';
+      } else if (strategy === 'time-window') {
+        html = '<label>Spread over (hours):</label>' +
+               '<input type="number" id="windowHours" value="6" min="1" max="48" step="0.5" oninput="updateSchedulePreview()">';
+      } else if (strategy === 'group-spread') {
+        html = '<label><input type="checkbox" id="spreadSequential" checked onchange="updateSchedulePreview()"> Sequential execution</label>' +
+               '<label>Rest (min):</label>' +
+               '<input type="number" id="spreadRest" value="20" min="1" max="120" oninput="updateSchedulePreview()">' +
+               '<label><input type="checkbox" id="schedRandomize" checked onchange="updateSchedulePreview()"> Randomize</label>';
+      }
+
+      opts.innerHTML = html;
+      updateSchedulePreview();
+    }
+
+    function updateSchedulePreview() {
+      var strategy = document.getElementById('scheduleStrategy').value;
+      var preview = document.getElementById('schedulePreview');
+      var numProfiles = selectedIds.length;
+      var numGroups = groupUrls.length;
+
+      if (numProfiles === 0 || strategy === 'immediate') {
+        preview.style.display = 'none';
+        return;
+      }
+
+      preview.style.display = 'block';
+      var avgPostTime = 3; // minutes per post estimate
+      var pacingMode = document.getElementById('pacingMode').value;
+      var batchSize = parseInt(document.getElementById('batchSize').value) || 3;
+      var waitMin = parseInt(document.getElementById('waitMinutes').value) || 5;
+
+      // Estimate time per profile
+      var groupsPerProfile = numGroups;
+      var timePerProfile = 0;
+      if (pacingMode === 'continuous') {
+        timePerProfile = groupsPerProfile * avgPostTime;
+      } else {
+        var batches = Math.ceil(groupsPerProfile / batchSize);
+        timePerProfile = (groupsPerProfile * avgPostTime) + ((batches - 1) * waitMin);
+      }
+
+      var text = '';
+      if (strategy === 'sequential') {
+        var rest = parseInt((document.getElementById('restMinutes') || {}).value) || 20;
+        var total = (timePerProfile * numProfiles) + (rest * (numProfiles - 1));
+        text = numProfiles + ' profiles x ' + numGroups + ' groups\n';
+        text += '~' + timePerProfile + ' min/profile + ' + rest + ' min rest\n';
+        text += 'Total: ~' + formatMinutes(total);
+      } else if (strategy === 'staggered') {
+        var stagger = parseInt((document.getElementById('staggerMinutes') || {}).value) || 20;
+        var total = timePerProfile + (stagger * (numProfiles - 1));
+        text = numProfiles + ' profiles starting ' + stagger + ' min apart\n';
+        text += 'Total window: ~' + formatMinutes(total);
+      } else if (strategy === 'time-window') {
+        var hours = parseFloat((document.getElementById('windowHours') || {}).value) || 6;
+        var stagger = (hours * 60) / numProfiles;
+        text = numProfiles + ' profiles spread over ' + hours + ' hours\n';
+        text += 'Each starts ~' + Math.round(stagger) + ' min apart';
+        if (numProfiles > 1) {
+          text += '\nSchedule: ';
+          for (var i = 0; i < numProfiles && i < 5; i++) {
+            text += (i > 0 ? ', ' : '') + '+' + Math.round(stagger * i) + 'min';
+          }
+          if (numProfiles > 5) text += '...';
+        }
+      } else if (strategy === 'group-spread') {
+        var perProfile = Math.ceil(numGroups / numProfiles);
+        var rest = parseInt((document.getElementById('spreadRest') || {}).value) || 20;
+        var seq = document.getElementById('spreadSequential');
+        var isSeq = seq ? seq.checked : true;
+        text = numGroups + ' groups split: ~' + perProfile + '/profile\n';
+        if (isSeq) {
+          var tpp = 0;
+          if (pacingMode === 'continuous') {
+            tpp = perProfile * avgPostTime;
+          } else {
+            var b = Math.ceil(perProfile / batchSize);
+            tpp = (perProfile * avgPostTime) + ((b - 1) * waitMin);
+          }
+          var total = (tpp * numProfiles) + (rest * (numProfiles - 1));
+          text += '~' + tpp + ' min/profile + ' + rest + ' min rest\n';
+          text += 'Total: ~' + formatMinutes(total);
+        } else {
+          text += 'Parallel execution — fastest completion';
+        }
+      }
+
+      preview.textContent = text;
+    }
+
+    function formatMinutes(m) {
+      if (m < 60) return Math.round(m) + ' min';
+      var h = Math.floor(m / 60);
+      var min = Math.round(m % 60);
+      return h + 'h ' + (min > 0 ? min + 'min' : '');
+    }
+
+    // ─── Posting ───
+    async function postSelected() {
+      if (!selectedIds.length) { showToast('No profiles selected', 'error'); return; }
+      var content = getEditorText();
+
+      // If no content in unified area, fall back to per-profile storage
+      if (!content && !imageData.length) {
+        return postFromStorage();
+      }
+
+      if (!groupUrls.length) { showToast('No groups added — add groups or sync first', 'error'); return; }
+
+      var btn = document.getElementById('postSelBtn');
+      btn.disabled = true; btn.textContent = 'Starting...';
+
+      var pacingMode = document.getElementById('pacingMode').value;
+      var deliveryOptions = null;
+      if (pacingMode === 'throttled') {
+        deliveryOptions = {
+          mode: 'throttled',
+          batchSize: parseInt(document.getElementById('batchSize').value) || 3,
+          waitMinutes: parseInt(document.getElementById('waitMinutes').value) || 5,
+          randomizeWait: document.getElementById('randomizeWait').checked,
+          isCustom: true
+        };
+      } else {
+        deliveryOptions = { mode: 'continuous', isCustom: false };
+      }
+
+      var schedule = buildSchedulePayload();
+
+      try {
+        var payload = {
+          profileIds: selectedIds,
+          post: { content: content, images: imageData.map(function(i) { return { base64: i.base64 }; }) },
+          groups: { urls: groupUrls },
+          deliveryOptions: deliveryOptions,
+          schedule: schedule,
+          timeInSeconds: 10
+        };
+
+        // Handle video upload if present
+        if (videoFile) {
+          btn.textContent = 'Uploading video...';
+          var videoId = await uploadVideoToProfiles(selectedIds);
+          if (videoId) {
+            payload.post.video_id = [videoId];
+          }
+        }
+
+        var res = await api('POST', '/api/dashboard/post-unified', payload);
+        if (res.success) {
+          var msg = schedule.strategy === 'immediate'
+            ? 'All ' + selectedIds.length + ' profiles posting'
+            : 'Campaign scheduled: ' + schedule.strategy;
+          showToast(msg, 'success');
+          selectedIds.forEach(function(id) { setCooldown(id); });
+        } else {
+          var ok = 0, fail = [];
+          if (res.results) {
+            selectedIds.forEach(function(id) {
+              var r = res.results[id];
+              if (r && (r.success || r.started)) ok++;
+              else fail.push(getName(id) + ': ' + ((r && r.error) || 'failed'));
+            });
+          }
+          if (fail.length) showToast(ok + ' started, ' + fail.length + ' failed: ' + fail[0], 'error');
+          else showToast('All ' + ok + ' profiles posting', 'success');
+          selectedIds.forEach(function(id) { setCooldown(id); });
+        }
+      } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Post Selected';
+      }
+    }
+
+    // Fallback: post using each profile's own stored content (like original Post All)
+    async function postFromStorage() {
+      var btn = document.getElementById('postSelBtn');
+      btn.disabled = true; btn.textContent = 'Posting...';
+      try {
+        var res = await api('POST', '/api/dashboard/post', { profileIds: selectedIds });
+        var ok = 0, fail = [];
+        selectedIds.forEach(function(id) {
+          var r = res.results[id];
+          if (r && (r.success || r.started)) ok++;
+          else fail.push(getName(id) + ': ' + ((r && r.error) || 'failed'));
+        });
+        if (fail.length) showToast(ok + ' started, ' + fail.length + ' failed: ' + fail[0], 'error');
+        else showToast('All ' + ok + ' profiles posting', 'success');
+        selectedIds.forEach(function(id) { setCooldown(id); });
+      } catch (e) { showToast('Error: ' + e.message, 'error'); }
+      finally { btn.disabled = false; btn.textContent = 'Post Selected'; }
+    }
+
+    function buildSchedulePayload() {
+      var strategy = document.getElementById('scheduleStrategy').value;
+      var payload = { strategy: strategy };
+
+      if (strategy === 'sequential') {
+        payload.restMinutes = parseInt((document.getElementById('restMinutes') || {}).value) || 20;
+        payload.randomize = (document.getElementById('schedRandomize') || {}).checked || false;
+      } else if (strategy === 'staggered') {
+        payload.staggerMinutes = parseInt((document.getElementById('staggerMinutes') || {}).value) || 20;
+        payload.randomize = (document.getElementById('schedRandomize') || {}).checked || false;
+      } else if (strategy === 'time-window') {
+        payload.timeWindowHours = parseFloat((document.getElementById('windowHours') || {}).value) || 6;
+      } else if (strategy === 'group-spread') {
+        payload.splitGroups = true;
+        payload.sequential = (document.getElementById('spreadSequential') || {}).checked || false;
+        payload.restMinutes = parseInt((document.getElementById('spreadRest') || {}).value) || 20;
+        payload.randomize = (document.getElementById('schedRandomize') || {}).checked || false;
+      }
+
+      return payload;
+    }
+
+    async function uploadVideoToProfiles(profileIds) {
+      if (!videoFile) return null;
+      try {
+        var reader = new FileReader();
+        var base64 = await new Promise(function(resolve, reject) {
+          reader.onload = function() { resolve(reader.result); };
+          reader.onerror = reject;
+          reader.readAsDataURL(videoFile);
+        });
+
+        var res = await api('POST', '/api/dashboard/upload-video', {
+          profileIds: profileIds,
+          videoBase64: base64,
+          fileName: videoFile.name
+        });
+        return res.videoId || null;
+      } catch (e) {
+        showToast('Video upload failed: ' + e.message, 'error');
+        return null;
+      }
+    }
+
+    function stopSelected() {
+      if (!selectedIds.length) { showToast('No profiles selected', 'error'); return; }
+      api('POST', '/api/dashboard/stop-all', { profileIds: selectedIds })
+        .then(function() { showToast('Stop sent to ' + selectedIds.length + ' profiles', ''); });
+    }
+    function postOne(id) {
+      api('POST', '/api/dashboard/post', { profileIds: [id] })
+        .then(function(res) {
+          var r = res.results[id];
+          if (r && (r.success || r.started)) { showToast(getName(id) + ' posting', 'success'); setCooldown(id); }
+          else showToast(getName(id) + ': ' + ((r && r.error) || 'failed'), 'error');
+        });
+    }
+    function stopOne(id) {
+      api('POST', '/api/dashboard/stop-all', { profileIds: [id] })
+        .then(function() { showToast(getName(id) + ' stop sent', ''); });
+    }
+
+    // ─── Status polling ───
+    var pollTimer, schedPollTimer;
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      if (schedPollTimer) clearInterval(schedPollTimer);
+      pollTimer = setInterval(pollStatus, 1500);
+      schedPollTimer = setInterval(pollScheduleStatus, 3000);
+      pollStatus();
+    }
+
+    function pollStatus() {
+      api('GET', '/api/dashboard/status').then(function(res) {
+        var statuses = res.statuses || {};
+        var runCount = 0, totalPosts = 0;
+        profiles.forEach(function(p) {
+          var s = statuses[p.id]; if (!s) return;
+          var card = document.getElementById('card-' + p.id);
+          var statusEl = document.getElementById('status-' + p.id);
+          var countEl = document.getElementById('count-' + p.id);
+          if (!card || !statusEl) return;
+
+          // Preserve 'selected' class
+          var isSelected = card.classList.contains('selected');
+          card.className = 'card';
+          if (isSelected) card.classList.add('selected');
+
+          var completed = Array.isArray(s.postsCompleted) ? s.postsCompleted : [];
+          var ok = completed.filter(function(r) { return r.response === 'successful'; }).length;
+          totalPosts += ok;
+
+          // Check for scheduled/waiting state
+          var launch = scheduledLaunches[p.id];
+          var isWaiting = launch && launch.status === 'waiting';
+
+          if (s.isRunning) {
+            card.classList.add('running');
+            runCount++;
+            var msg = s.statusMessage || 'posting...';
+            if (msg.length > 45) msg = msg.substring(0, 45) + '...';
+            statusEl.innerHTML = '<span class="status-dot running"></span> ' + esc(msg);
+          } else if (isWaiting) {
+            card.classList.add('waiting');
+            var startsIn = Math.max(0, Math.round((new Date(launch.startAt).getTime() - Date.now()) / 60000));
+            statusEl.innerHTML = '<span class="status-dot waiting"></span> starts in ' + startsIn + ' min';
+          } else if (s.postingStatus === 'done' || completed.length > 0) {
+            card.classList.add('done');
+            statusEl.innerHTML = '<span class="status-dot done"></span> done (' + ok + '/' + completed.length + ')';
+          } else {
+            statusEl.innerHTML = '<span class="status-dot idle"></span> idle';
+          }
+
+          if (countEl) countEl.textContent = completed.length > 0 ? ok + '/' + completed.length : '';
+        });
+
+        var agg = document.getElementById('aggText');
+        var parts = [];
+        if (runCount > 0) parts.push('<span class="agg-chip running">' + runCount + ' running</span>');
+        if (totalPosts > 0) parts.push(totalPosts + ' posts');
+        agg.innerHTML = parts.length ? parts.join(' ') : 'all idle';
+      }).catch(function() {});
+    }
+
+    function pollScheduleStatus() {
+      api('GET', '/api/dashboard/schedule-status').then(function(res) {
+        scheduledLaunches = {};
+        if (res.scheduled) {
+          res.scheduled.forEach(function(s) { scheduledLaunches[s.profileId] = s; });
+        }
+      }).catch(function() {});
+    }
+
+    // ─── Keyboard shortcuts ───
+    document.addEventListener('keydown', function(e) {
+      // Ctrl+Enter = Post Selected
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        postSelected();
+      }
+      // Escape = Stop Selected
+      if (e.key === 'Escape') {
+        stopSelected();
+      }
+      // Ctrl+Shift+A = Select All
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        selectAll();
+      }
+    });
+
+    // ─── Helpers ───
+    function getName(id) {
+      for (var i = 0; i < profiles.length; i++) {
+        if (profiles[i].id === id) return profiles[i].name;
+      }
+      return id.substring(0, 8);
+    }
+    function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    var tt;
+    function showToast(m, t) {
+      var e = document.getElementById('toast');
+      e.textContent = m;
+      e.className = 'toast show' + (t ? ' ' + t : '');
+      clearTimeout(tt);
+      tt = setTimeout(function() { e.className = 'toast'; }, 4000);
+    }
+
+    // ─── Init ───
+    loadProfiles();
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  ghost-browser:
+    build: .
+    ports:
+      - "${PORT:-1306}:${PORT:-1306}"
+    volumes:
+      - ghost-data:/data
+    environment:
+      - PORT=${PORT:-1306}
+      - API_KEY=${API_KEY:-}
+      - DATA_DIR=/data
+    shm_size: 2gb
+    restart: unless-stopped
+
+volumes:
+  ghost-data:

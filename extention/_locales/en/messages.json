@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Facebook™ Groups Bulk Poster & Scheduler - Auto Post Tool",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "The #1 safe Facebook bulk poster. Auto post to multiple groups, schedule content, and use Spintax + Smart Delays to avoid bans.",
+    "description": "Extension description"
+  }
+}

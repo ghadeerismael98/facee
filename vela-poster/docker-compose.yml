@@ -1,0 +1,34 @@
+services:
+  vela-poster:
+    build: .
+    ports:
+      - "${PORT:-3333}:${PORT:-3333}"
+      - "5001:5001"
+      - "5002:5002"
+      - "5003:5003"
+      - "5004:5004"
+      - "5005:5005"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - poster-data:/home/appuser/.face-poster
+    restart: unless-stopped
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "4000:4000"
+    environment:
+      - POSTER_URL=http://vela-poster:${PORT:-3333}
+      - VELA_API_URL=http://host.docker.internal:1307
+      - VELA_API_KEY=${VELA_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - vela-poster
+    restart: unless-stopped
+
+volumes:
+  poster-data:

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+data/
+.env
+*.js.map
+.DS_Store
+poster-data/
+face-poster-bundle.zip
+ghost-browser.tar.gz

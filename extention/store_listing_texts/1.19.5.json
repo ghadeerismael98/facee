@@ -1,0 +1,26 @@
+{
+  "version": "1.19.5",
+  "notes": "Store listing helper file. Edit only description fields per release if needed.",
+  "languages": {
+    "en": {
+      "title_from_package": "Facebook™ Groups Bulk Poster & Scheduler - Auto Post Tool",
+      "summary_from_package": "The #1 safe Facebook bulk poster. Auto post to multiple groups, schedule content, and use Spintax + Smart Delays to avoid bans.",
+      "description_for_store": ""
+    },
+    "fr": {
+      "title_from_package": "Publication en Masse pour Groupes Facebook™ - Outil de Planification Auto",
+      "summary_from_package": "Le meilleur outil de publication en masse Facebook sécurisé. Publiez dans plusieurs groupes, planifiez du contenu et utilisez Spintax + Délais Intelligents pour éviter les bannissements.",
+      "description_for_store": ""
+    },
+    "pl": {
+      "title_from_package": "Masowe Publikowanie w Grupach Facebook™ - Narzędzie Auto Postowania",
+      "summary_from_package": "Najbezpieczniejsze narzędzie do masowego publikowania na Facebooku. Automatycznie publikuj w wielu grupach, planuj treści i używaj Spintax + Inteligentnych Opóźnień, aby uniknąć blokad.",
+      "description_for_store": ""
+    },
+    "es": {
+      "title_from_package": "Publicación Masiva en Grupos de Facebook™ - Herramienta de Auto Publicación",
+      "summary_from_package": "La herramienta de publicación masiva más segura para Facebook. Publica en múltiples grupos, programa contenido y usa Spintax + Retrasos Inteligentes para evitar bloqueos.",
+      "description_for_store": ""
+    }
+  }
+}
