@@ -10,6 +10,32 @@
   var VELA_API = 'http://127.0.0.1:1306';
   var PROFILE_ID = 'default'; // Will be resolved async
 
+  // ── Block IndexedDB ────────────────────────────────────────────
+  // The popup bundle uses IndexedDB (Zustand persist) as primary storage,
+  // but our data lives on the server via chrome.storage shim.
+  // If IndexedDB is available, the popup reads stale/empty data from it
+  // and ignores our server data. Block it so the popup falls back to
+  // chrome.storage.local exclusively (which our shim handles).
+  try {
+    var _origIDBOpen = indexedDB.open.bind(indexedDB);
+    indexedDB.open = function (name) {
+      // Allow non-popup databases (e.g. browser internals)
+      if (name && (name.indexOf('PostStore') !== -1 || name.indexOf('keyval') !== -1 || name.indexOf('idb') !== -1)) {
+        console.log('[Shim] Blocking IndexedDB:', name, '— using chrome.storage instead');
+        // Return a fake request that immediately fires an error
+        // so the Zustand persist falls back to chrome.storage
+        var fakeReq = { error: new DOMException('Blocked by shim', 'NotAllowedError') };
+        setTimeout(function () {
+          if (fakeReq.onerror) fakeReq.onerror({ target: fakeReq });
+        }, 0);
+        return fakeReq;
+      }
+      return _origIDBOpen.apply(indexedDB, arguments);
+    };
+  } catch (e) {
+    console.warn('[Shim] Could not block IndexedDB:', e);
+  }
+
   // ── Premium overrides ──────────────────────────────────────────
   var PREMIUM_OVERRIDES = {
     isPremium: true,
