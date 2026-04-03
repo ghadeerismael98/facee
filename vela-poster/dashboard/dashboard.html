@@ -673,6 +673,30 @@
       } catch(e) { console.warn('Could not open Facebook:', e); alert('Failed to open Facebook: ' + e.message); }
     }
 
+    async function getGroupsForProfile(profileId) {
+      if (!profileId) return;
+      var btn = document.getElementById('getgrp-' + profileId);
+      var statusEl = document.getElementById('status-' + profileId);
+      if (btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
+      if (statusEl) statusEl.innerHTML = '<span class="status-dot" style="background:var(--info)"></span> Fetching groups...';
+
+      try {
+        var result = await api('POST', '/api/profiles/' + profileId + '/get-groups');
+        if (result.error) throw new Error(result.error);
+        var count = result.count || 0;
+        if (statusEl) statusEl.innerHTML = '<span class="status-dot" style="background:var(--success)"></span> ' + count + ' groups saved!';
+        showToast(count + ' groups fetched for this profile', 'success');
+        // Refresh the iframe to show the new groups
+        var iframe = document.getElementById('iframe-' + profileId);
+        if (iframe) { var src = iframe.src; iframe.src = 'about:blank'; setTimeout(function() { iframe.src = src; }, 100); }
+      } catch(e) {
+        if (statusEl) statusEl.innerHTML = '<span class="status-dot" style="background:var(--danger)"></span> Failed';
+        showToast('Failed to get groups: ' + e.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Get Groups'; }
+      }
+    }
+
     var deleteTargetId = null;
     function showDeleteModal(id, name) {
       deleteTargetId = id;
@@ -760,6 +784,7 @@
           '<div><iframe src="' + iframeSrc + '" class="profile-iframe" id="iframe-' + p.id + '"></iframe></div>' +
           '<div class="card-foot">' +
             '<button class="btn btn-info btn-sm" onclick="openFacebookForProfile(\'' + p.id + '\')" title="Open Facebook in this profile">FB Login</button>' +
+            '<button class="btn btn-sm" onclick="getGroupsForProfile(\'' + p.id + '\')" style="background:var(--info-dim);color:var(--info);border:1px solid rgba(96,165,250,.2)" title="Auto-fetch all joined groups from Facebook" id="getgrp-' + p.id + '">Get Groups</button>' +
             '<button class="btn btn-post btn-sm" onclick="postOne(\'' + p.id + '\')">Post</button>' +
             '<button class="btn btn-stop btn-sm" onclick="stopOne(\'' + p.id + '\')">Stop</button>' +
             '<span class="post-count" id="count-' + p.id + '"></span>' +

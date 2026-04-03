@@ -121,6 +121,123 @@ app.post('/api/profiles/:id/open-facebook', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Get Groups: auto-scrape joined groups from Facebook ───
+app.post('/api/profiles/:id/get-groups', async (req, res) => {
+  const profileId = req.params.id;
+  if (!isValidUuid(profileId)) return res.status(400).json({ error: 'Invalid profile ID' });
+
+  let tabId = null;
+  try {
+    // Close existing tabs for this profile
+    const existing = await fetch(`${VELA_API_URL}/api/tabs`, {
+      headers: { 'X-API-Key': VELA_API_KEY },
+    }).then(r => r.json());
+    const profileTabs = (Array.isArray(existing) ? existing : []).filter(t => t.profileId === profileId);
+    for (const t of profileTabs) {
+      await fetch(`${VELA_API_URL}/api/tabs/${t.id}`, { method: 'DELETE', headers: { 'X-API-Key': VELA_API_KEY } }).catch(() => {});
+    }
+
+    // Create tab and navigate to groups page
+    const tabRes = await fetch(`${VELA_API_URL}/api/tabs`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://www.facebook.com/groups/joins/?nav_source=tab&ordering=viewer_added', profileId }),
+    });
+    const tab = await tabRes.json();
+    tabId = tab.id;
+    if (!tabId) throw new Error('Failed to create tab');
+
+    // Wait for page to load
+    await fetch(`${VELA_API_URL}/api/tabs/${tabId}/wait-for-load-state`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: 'networkidle' }),
+    });
+
+    // Wait extra for Facebook SPA rendering
+    await new Promise(r => setTimeout(r, 3000));
+
+    // Scroll down to load all groups (infinite scroll)
+    let prevCount = 0;
+    for (let i = 0; i < 50; i++) {
+      // Count current group links
+      const countRes = await fetch(`${VELA_API_URL}/api/tabs/${tabId}/execute`, {
+        method: 'POST',
+        headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: `document.querySelectorAll('a[href*="/groups/"]').length` }),
+      }).then(r => r.json());
+      const currentCount = countRes.result || 0;
+
+      if (currentCount === prevCount && i > 0) break; // No new groups loaded
+      prevCount = currentCount;
+
+      // Scroll to bottom
+      await fetch(`${VELA_API_URL}/api/tabs/${tabId}/execute`, {
+        method: 'POST',
+        headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: `window.scrollTo(0, document.body.scrollHeight)` }),
+      });
+
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    // Extract all group URLs
+    const extractRes = await fetch(`${VELA_API_URL}/api/tabs/${tabId}/execute`, {
+      method: 'POST',
+      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script: `
+        (function() {
+          var links = document.querySelectorAll('a[href*="/groups/"]');
+          var urls = {};
+          links.forEach(function(a) {
+            var href = a.href || '';
+            var match = href.match(/facebook\\.com\\/groups\\/([^/?&#]+)/);
+            if (match) {
+              var slug = match[1];
+              if (['joins','feed','discover','create','notifications','search'].indexOf(slug) === -1) {
+                urls['https://www.facebook.com/groups/' + slug] = true;
+              }
+            }
+          });
+          return Object.keys(urls);
+        })()
+      ` }),
+    }).then(r => r.json());
+
+    const urls = extractRes.result || [];
+
+    // Close tab
+    await fetch(`${VELA_API_URL}/api/tabs/${tabId}`, { method: 'DELETE', headers: { 'X-API-Key': VELA_API_KEY } }).catch(() => {});
+    tabId = null;
+
+    if (!urls.length) {
+      return res.json({ success: false, error: 'No groups found. Make sure the account is logged in.', count: 0, urls: [] });
+    }
+
+    // Save to profile storage (same format as sync-groups)
+    const listId = 'auto-fetched';
+    const newList = { id: listId, name: 'My Groups', urls, count: urls.length, createdAt: new Date().toISOString() };
+
+    const data = await posterApi('GET', '/api/storage/local?keys=fb-group-lists', null, profileId);
+    const gl = data['fb-group-lists'];
+    let groupLists = gl?.state?.groupLists || gl?.state?.state?.groupLists || [];
+    const existingIdx = groupLists.findIndex(g => g.id === listId);
+    if (existingIdx !== -1) groupLists[existingIdx] = newList;
+    else groupLists.push(newList);
+
+    const glState = { state: { groupLists, selectedGroupListId: listId }, version: 0 };
+    await posterApi('POST', '/api/storage/local', { 'fb-group-lists': glState }, profileId);
+
+    res.json({ success: true, count: urls.length, urls });
+  } catch (e) {
+    // Clean up tab on error
+    if (tabId) {
+      await fetch(`${VELA_API_URL}/api/tabs/${tabId}`, { method: 'DELETE', headers: { 'X-API-Key': VELA_API_KEY } }).catch(() => {});
+    }
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── Remote browser viewer proxy ───
 app.get('/api/browser/screenshot/:tabId', async (req, res) => {
   try {
