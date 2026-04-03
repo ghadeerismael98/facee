@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-color-emoji fonts-liberation fonts-noto-cjk \
     tor curl \
     xvfb x11vnc novnc websockify supervisor \
-    # Install system Chromium as fallback for headed mode
     chromium \
     && rm -rf /var/lib/apt/lists/*
 
@@ -46,7 +45,7 @@ ENV PORT=1306
 ENV DATA_DIR=/data
 ENV DISPLAY=:99
 ENV VNC_PASSWORD=ghostvnc
-# Tell Playwright to use system Chromium if its own isn't found
+# Use system Chromium for headed mode compatibility
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 EXPOSE 1306 6080
 

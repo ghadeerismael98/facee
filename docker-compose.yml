@@ -12,6 +12,8 @@ services:
       - DATA_DIR=/data
       - VNC_PASSWORD=${VNC_PASSWORD:-ghostvnc}
     shm_size: 2gb
+    security_opt:
+      - seccomp=unconfined
     restart: unless-stopped
 
   vela-poster:

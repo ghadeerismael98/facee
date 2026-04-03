@@ -15,6 +15,8 @@ const CHROMIUM_ARGS = [
   '--no-first-run',
   '--no-default-browser-check',
   '--disable-infobars',
+  '--disable-features=VizDisplayCompositor',
+  '--disable-gpu-sandbox',
 ];
 
 if (headless) {
