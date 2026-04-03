@@ -9,65 +9,74 @@
     body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
     .toolbar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-    .toolbar input{flex:1;padding:5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:var(--mono)}
-    .toolbar button{padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600}
-    .toolbar button:hover{opacity:.85}
-    .toolbar button.secondary{background:var(--border);color:var(--text-dim)}
     .toolbar .status{font-size:10px;color:var(--text-dim);font-family:var(--mono);white-space:nowrap}
+    .toolbar .status.live{color:#4ade80}
+    .toolbar button{padding:4px 10px;background:var(--border);color:var(--text-dim);border:none;border-radius:4px;cursor:pointer;font-size:11px}
+    .toolbar button:hover{opacity:.85}
+    .toolbar button.danger{background:#7f1d1d;color:#f87171}
 
-    .viewport{flex:1;position:relative;overflow:hidden;cursor:crosshair;display:flex;align-items:center;justify-content:center;background:#111}
-    .viewport img{max-width:100%;max-height:100%;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none}
-    .viewport .loading{color:var(--text-dim);font-size:14px}
+    .vnc-container{flex:1;position:relative;overflow:hidden;background:#000}
+    .vnc-container iframe{width:100%;height:100%;border:none}
 
-    .input-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
-    .input-bar input{flex:1;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px}
-    .input-bar button{padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600}
-    .input-bar .hint{font-size:10px;color:var(--text-dim)}
+    .fallback{flex:1;display:flex;flex-direction:column}
+    .fallback .viewport{flex:1;position:relative;overflow:hidden;cursor:crosshair;display:flex;align-items:center;justify-content:center;background:#111}
+    .fallback .viewport img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
+    .fallback .input-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+    .fallback .input-bar input{flex:1;padding:5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px}
+    .fallback .input-bar button{padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px}
+    .fallback .hint{font-size:10px;color:var(--text-dim)}
+    .fallback button.key{padding:3px 8px;background:var(--border);color:var(--text-dim);border:none;border-radius:3px;cursor:pointer;font-size:10px}
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <button class="secondary" onclick="goBack()">&#8592;</button>
-    <button class="secondary" onclick="refresh()">&#8635;</button>
-    <input id="urlBar" type="text" placeholder="URL..." onkeydown="if(event.key==='Enter')navigate()">
-    <button onclick="navigate()">Go</button>
     <span class="status" id="status">Connecting...</span>
-    <button class="secondary" onclick="closeTab()">&#10005; Close</button>
+    <span style="flex:1"></span>
+    <button onclick="switchMode();" id="modeBtn">Switch to Screenshot mode</button>
+    <button class="danger" onclick="closeTab()">Close Tab</button>
   </div>
 
-  <div class="viewport" id="viewport">
-    <div class="loading" id="loadingMsg">Opening Facebook...</div>
-    <img id="screen" style="display:none" alt="Browser">
+  <!-- noVNC mode -->
+  <div class="vnc-container" id="vncMode">
+    <iframe id="vncFrame" src="about:blank"></iframe>
   </div>
 
-  <div class="input-bar">
-    <span class="hint">Type:</span>
-    <input id="typeInput" type="text" placeholder="Type text here and press Enter..." onkeydown="handleTypeKey(event)">
-    <button onclick="sendType()">Send</button>
-    <span class="hint" style="margin-left:8px">Keys:</span>
-    <button class="secondary" onclick="sendKey('Tab')" style="font-size:10px;padding:4px 8px">Tab</button>
-    <button class="secondary" onclick="sendKey('Enter')" style="font-size:10px;padding:4px 8px">Enter</button>
-    <button class="secondary" onclick="sendKey('Backspace')" style="font-size:10px;padding:4px 8px">&#9003;</button>
-    <button class="secondary" onclick="sendKey('Escape')" style="font-size:10px;padding:4px 8px">Esc</button>
+  <!-- Screenshot fallback mode -->
+  <div class="fallback" id="screenshotMode" style="display:none">
+    <div class="viewport" id="viewport">
+      <img id="screen" alt="Browser" style="display:none">
+      <div id="loadingMsg" style="color:var(--text-dim)">Loading...</div>
+    </div>
+    <div class="input-bar">
+      <span class="hint">Type:</span>
+      <input id="typeInput" type="text" placeholder="Type here, press Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendType()}">
+      <button onclick="sendType()">Send</button>
+      <button class="key" onclick="sendKey('Tab')">Tab</button>
+      <button class="key" onclick="sendKey('Enter')">Enter</button>
+      <button class="key" onclick="sendKey('Backspace')">&#9003;</button>
+    </div>
   </div>
 
   <script>
     var params = new URLSearchParams(window.location.search);
     var tabId = params.get('tabId');
     var DASH = window.location.origin;
+    var currentMode = 'vnc';
     var refreshInterval = null;
+
+    // ─── noVNC mode ───
+    function startVNC() {
+      var vncUrl = DASH + '/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000';
+      document.getElementById('vncFrame').src = vncUrl;
+      document.getElementById('status').textContent = 'Live (noVNC)';
+      document.getElementById('status').className = 'status live';
+    }
+
+    // ─── Screenshot fallback ───
     var imgEl = document.getElementById('screen');
     var loadingEl = document.getElementById('loadingMsg');
     var statusEl = document.getElementById('status');
-    var urlBar = document.getElementById('urlBar');
 
-    function api(method, path, body) {
-      var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
-      if (body) opts.body = JSON.stringify(body);
-      return fetch(DASH + path, opts).then(function(r) { return r; });
-    }
-
-    // ─── Screenshot loop ───
     function startScreenshots() {
       if (refreshInterval) clearInterval(refreshInterval);
       grabScreenshot();
@@ -83,84 +92,80 @@
             imgEl.src = 'data:image/png;base64,' + base64;
             imgEl.style.display = 'block';
             loadingEl.style.display = 'none';
-            statusEl.textContent = 'Live';
-            statusEl.style.color = '#4ade80';
+            statusEl.textContent = 'Live (screenshots)';
+            statusEl.className = 'status live';
           }
         })
         .catch(function() {
           statusEl.textContent = 'Disconnected';
-          statusEl.style.color = '#f87171';
+          statusEl.className = 'status';
         });
     }
 
-    // ─── Click handling ───
     imgEl.addEventListener('click', function(e) {
       var rect = imgEl.getBoundingClientRect();
-      var scaleX = 1920 / rect.width;
-      var scaleY = 1080 / rect.height;
-      var x = Math.round((e.clientX - rect.left) * scaleX);
-      var y = Math.round((e.clientY - rect.top) * scaleY);
-      statusEl.textContent = 'Click ' + x + ',' + y;
-
-      api('POST', '/api/browser/click/' + tabId, { x: x, y: y })
-        .then(function() { setTimeout(grabScreenshot, 300); });
+      var x = Math.round((e.clientX - rect.left) * (1920 / rect.width));
+      var y = Math.round((e.clientY - rect.top) * (1080 / rect.height));
+      fetch(DASH + '/api/browser/click/' + tabId, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: x, y: y })
+      }).then(function() { setTimeout(grabScreenshot, 300); });
     });
 
-    // ─── Scroll handling ───
     document.getElementById('viewport').addEventListener('wheel', function(e) {
       e.preventDefault();
-      api('POST', '/api/browser/scroll/' + tabId, { deltaY: e.deltaY > 0 ? 400 : -400 })
-        .then(function() { setTimeout(grabScreenshot, 200); });
+      fetch(DASH + '/api/browser/scroll/' + tabId, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deltaY: e.deltaY > 0 ? 400 : -400 })
+      }).then(function() { setTimeout(grabScreenshot, 200); });
     }, { passive: false });
 
-    // ─── Typing ───
     function sendType() {
       var input = document.getElementById('typeInput');
-      var text = input.value;
-      if (!text) return;
-      api('POST', '/api/browser/type/' + tabId, { text: text })
-        .then(function() { input.value = ''; setTimeout(grabScreenshot, 200); });
-    }
-
-    function handleTypeKey(e) {
-      if (e.key === 'Enter') { e.preventDefault(); sendType(); }
+      if (!input.value) return;
+      fetch(DASH + '/api/browser/type/' + tabId, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: input.value })
+      }).then(function() { input.value = ''; setTimeout(grabScreenshot, 200); });
     }
 
     function sendKey(key) {
-      api('POST', '/api/browser/press/' + tabId, { key: key })
-        .then(function() { setTimeout(grabScreenshot, 200); });
+      fetch(DASH + '/api/browser/press/' + tabId, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key })
+      }).then(function() { setTimeout(grabScreenshot, 200); });
     }
 
-    // ─── Navigation ───
-    function navigate() {
-      var url = urlBar.value.trim();
-      if (!url) return;
-      if (!url.startsWith('http')) url = 'https://' + url;
-      api('POST', '/api/browser/navigate/' + tabId, { url: url })
-        .then(function() { setTimeout(grabScreenshot, 1000); });
-    }
-
-    function refresh() {
-      api('POST', '/api/browser/navigate/' + tabId, { url: urlBar.value || 'https://www.facebook.com' })
-        .then(function() { setTimeout(grabScreenshot, 1000); });
-    }
-
-    function goBack() {
-      sendKey('Alt+ArrowLeft');
+    // ─── Mode switching ───
+    function switchMode() {
+      if (currentMode === 'vnc') {
+        currentMode = 'screenshot';
+        document.getElementById('vncMode').style.display = 'none';
+        document.getElementById('screenshotMode').style.display = 'flex';
+        document.getElementById('modeBtn').textContent = 'Switch to noVNC mode';
+        document.getElementById('vncFrame').src = 'about:blank';
+        startScreenshots();
+      } else {
+        currentMode = 'vnc';
+        document.getElementById('vncMode').style.display = 'block';
+        document.getElementById('screenshotMode').style.display = 'none';
+        document.getElementById('modeBtn').textContent = 'Switch to Screenshot mode';
+        if (refreshInterval) clearInterval(refreshInterval);
+        startVNC();
+      }
     }
 
     function closeTab() {
       if (refreshInterval) clearInterval(refreshInterval);
-      api('DELETE', '/api/browser/tab/' + tabId);
-      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b8994;font-size:14px">Tab closed. You can close this window.</div>';
+      fetch(DASH + '/api/browser/tab/' + tabId, { method: 'DELETE' });
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b8994">Tab closed</div>';
     }
 
     // ─── Init ───
     if (tabId) {
-      urlBar.value = 'https://www.facebook.com';
-      setTimeout(startScreenshots, 2000);
+      setTimeout(startVNC, 1500);
     } else {
-      loadingEl.textContent = 'Error: No tab ID provided';
+      loadingEl.textContent = 'Error: No tab ID';
     }
   </script>
 </body>

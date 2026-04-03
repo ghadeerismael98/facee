@@ -1,17 +1,25 @@
 FROM node:20-slim
 
-# Install Chromium dependencies + Tor
+# Install Chromium dependencies + Tor + VNC/noVNC stack
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
     libpango-1.0-0 libcairo2 libasound2 libxshmfence1 \
     fonts-noto-color-emoji fonts-liberation fonts-noto-cjk \
     tor curl \
+    xvfb x11vnc websockify supervisor \
     && rm -rf /var/lib/apt/lists/*
+
+# Get noVNC client files
+RUN mkdir -p /opt/novnc && \
+    curl -sL https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.tar.gz | \
+    tar xz -C /opt/novnc --strip-components=1
 
 # Create non-root user
 RUN groupadd -r ghost && useradd -r -g ghost -G audio,video ghost \
-    && mkdir -p /app /data && chown -R ghost:ghost /app /data
+    && mkdir -p /app /data /var/log/supervisor /tmp/.X11-unix \
+    && chown -R ghost:ghost /app /data /var/log/supervisor \
+    && chmod 1777 /tmp/.X11-unix
 
 WORKDIR /app
 
@@ -19,26 +27,27 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Install Playwright Chromium — install as root, then fix permissions for ghost user
+# Install Playwright Chromium
 RUN npx playwright install --with-deps chromium \
     && chmod -R 755 /root/.cache/ms-playwright || true
-# Also install for the ghost user path
 RUN mkdir -p /home/ghost/.cache && cp -r /root/.cache/ms-playwright /home/ghost/.cache/ \
-    && chown -R ghost:ghost /home/ghost/.cache
+    && chown -R ghost:ghost /home/ghost
 
 # Copy source and build
 COPY tsconfig.json ./
 COPY src/ ./src/
 RUN npm run build
 
-# Switch to non-root user
-USER ghost
+# Copy supervisor config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Persist profile data
 VOLUME /data
 
 ENV PORT=1306
 ENV DATA_DIR=/data
-EXPOSE 1306
+ENV DISPLAY=:99
+ENV VNC_PASSWORD=ghostvnc
+EXPOSE 1306 6080
 
-CMD ["node", "dist/index.js"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
