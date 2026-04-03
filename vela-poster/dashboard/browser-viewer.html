@@ -120,10 +120,11 @@
       document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b8994">Tab closed</div>';
     }
 
-    if (tabId) {
+    // Validate tabId to prevent path traversal
+    if (tabId && /^[a-zA-Z0-9_-]+$/.test(tabId)) {
       setTimeout(startScreenshots, 2000);
     } else {
-      loadingEl.textContent = 'Error: No tab ID';
+      loadingEl.textContent = tabId ? 'Error: Invalid tab ID' : 'Error: No tab ID';
     }
   </script>
 </body>

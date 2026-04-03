@@ -8,8 +8,13 @@ function profilesDir(): string {
   return path.join(config.dataDir, 'profiles');
 }
 
+function validateId(id: string): string {
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid profile ID');
+  return id;
+}
+
 function profileDir(id: string): string {
-  return path.join(profilesDir(), id);
+  return path.join(profilesDir(), validateId(id));
 }
 
 function profilePath(id: string): string {
@@ -23,7 +28,7 @@ function ensureDir(dir: string): void {
 }
 
 function randomSeed(): number {
-  return 100000 + Math.floor(Math.random() * 900000);
+  return 100000 + require('crypto').randomInt(900000);
 }
 
 export const profileStore = {

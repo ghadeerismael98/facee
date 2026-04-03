@@ -409,7 +409,8 @@ router.post('/api/tabs/:id/upload', async (req: Request, res: Response) => {
       buffer = Buffer.from(file, 'base64');
     }
 
-    const tmpPath = path.join(os.tmpdir(), filename || `upload-${Date.now()}`);
+    const safeName = path.basename(filename || `upload-${Date.now()}`);
+    const tmpPath = path.join(os.tmpdir(), safeName);
     fs.writeFileSync(tmpPath, buffer);
     try {
       await page.setInputFiles(selector, tmpPath);

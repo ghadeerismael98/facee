@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 4000;
@@ -20,15 +21,25 @@ if (DASH_PASS) {
       return res.status(401).send('Authentication required');
     }
     const [user, pass] = Buffer.from(auth.split(' ')[1], 'base64').toString().split(':');
-    if (user === DASH_USER && pass === DASH_PASS) return next();
+    // Timing-safe comparison to prevent timing attacks
+    const userMatch = user.length === DASH_USER.length && crypto.timingSafeEqual(Buffer.from(user), Buffer.from(DASH_USER));
+    const passMatch = pass.length === DASH_PASS.length && crypto.timingSafeEqual(Buffer.from(pass), Buffer.from(DASH_PASS));
+    if (userMatch && passMatch) return next();
     res.set('WWW-Authenticate', 'Basic realm="Face Poster Dashboard"');
     res.status(401).send('Invalid credentials');
   });
   console.log(`[Dashboard] Basic auth enabled (user: ${DASH_USER})`);
 }
 
+// ─── Helpers ───
+function isValidUuid(s) { return /^[a-zA-Z0-9_-]+$/.test(s); }
+function isValidUrl(s) {
+  try { const u = new URL(s); return ['http:', 'https:'].includes(u.protocol); }
+  catch { return false; }
+}
+
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // ─── In-memory schedule state ───
 let scheduledCampaigns = []; // [{ profileId, startAt, status, timer }]
@@ -102,6 +113,7 @@ app.post('/api/profiles/:id/open-facebook', async (req, res) => {
 // ─── Remote browser viewer proxy ───
 app.get('/api/browser/screenshot/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
     const r = await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/screenshot`, {
       headers: { 'X-API-Key': VELA_API_KEY },
     });
@@ -112,6 +124,7 @@ app.get('/api/browser/screenshot/:tabId', async (req, res) => {
 
 app.post('/api/browser/click/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
     await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/native/click`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
@@ -123,6 +136,7 @@ app.post('/api/browser/click/:tabId', async (req, res) => {
 
 app.post('/api/browser/type/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
     await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/keyboard/insert-text`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
@@ -134,6 +148,7 @@ app.post('/api/browser/type/:tabId', async (req, res) => {
 
 app.post('/api/browser/press/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
     await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/keyboard/press`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
@@ -145,10 +160,13 @@ app.post('/api/browser/press/:tabId', async (req, res) => {
 
 app.post('/api/browser/scroll/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
+    // Sanitize deltaY to prevent code injection — must be a number
+    const deltaY = parseInt(req.body.deltaY, 10) || 300;
     await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/execute`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ script: `window.scrollBy(0, ${req.body.deltaY || 300})` }),
+      body: JSON.stringify({ script: `window.scrollBy(0, ${deltaY})` }),
     });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -156,6 +174,11 @@ app.post('/api/browser/scroll/:tabId', async (req, res) => {
 
 app.post('/api/browser/navigate/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
+    // Prevent SSRF — only allow http/https URLs, block internal IPs
+    if (!req.body.url || !isValidUrl(req.body.url)) {
+      return res.status(400).json({ error: 'Invalid URL' });
+    }
     await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}/navigate`, {
       method: 'POST',
       headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
@@ -167,6 +190,7 @@ app.post('/api/browser/navigate/:tabId', async (req, res) => {
 
 app.delete('/api/browser/tab/:tabId', async (req, res) => {
   try {
+    if (!isValidUuid(req.params.tabId)) return res.status(400).json({ error: 'Invalid tab ID' });
     await fetch(`${VELA_API_URL}/api/tabs/${req.params.tabId}`, {
       method: 'DELETE',
       headers: { 'X-API-Key': VELA_API_KEY },
