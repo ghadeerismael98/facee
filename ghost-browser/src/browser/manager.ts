@@ -11,8 +11,10 @@ const CHROMIUM_ARGS = [
   '--disable-background-timer-throttling',
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
-  // Anti-detection: hide automation signals
   '--disable-blink-features=AutomationControlled',
+  '--no-first-run',
+  '--no-default-browser-check',
+  '--disable-infobars',
 ];
 
 if (headless) {
@@ -42,17 +44,26 @@ export const browserManager = {
     };
 
     // Use system Chromium executable if set (Docker headed mode)
-    if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {
+    const execPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    if (execPath) {
       const fs = require('fs');
-      const execPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
       if (fs.existsSync(execPath)) {
         launchOptions.executablePath = execPath;
-        console.log(`[BrowserManager] Using system Chromium: ${execPath}`);
+        // System chromium may not work with playwright-extra — fall back to vanilla
+        chromium = playwrightChromium;
+        console.log(`[BrowserManager] Using system Chromium: ${execPath} (vanilla Playwright)`);
       }
     }
 
     console.log(`[BrowserManager] Launching Chromium (${headless ? 'headless' : 'headed'})...`);
-    browser = await chromium.launch(launchOptions);
+
+    try {
+      browser = await chromium.launch(launchOptions);
+    } catch (e: any) {
+      // If launch fails with stealth, retry with vanilla playwright
+      console.warn(`[BrowserManager] Launch failed: ${e.message}, retrying with vanilla Playwright...`);
+      browser = await playwrightChromium.launch(launchOptions);
+    }
 
     browser!.on('disconnected', () => {
       console.log('[BrowserManager] Browser disconnected');
