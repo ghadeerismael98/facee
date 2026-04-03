@@ -10,13 +10,18 @@
     <!-- Global error catcher for debugging -->
     <script>
       window.__errors = [];
+      var _origConsoleError = console.error.bind(console);
+      console.error = function() {
+        var args = Array.prototype.slice.call(arguments);
+        var msg = args.map(function(a) { try { return typeof a === 'object' ? JSON.stringify(a).substring(0,500) : String(a).substring(0,500); } catch(e) { return String(a).substring(0,200); } }).join(' | ');
+        window.__errors.push({msg: msg, type: 'console.error'});
+        _origConsoleError.apply(console, arguments);
+      };
       window.addEventListener('error', function(e) {
         window.__errors.push({msg: e.message, file: e.filename, line: e.lineno, col: e.colno});
-        console.error('[ERROR]', e.message, e.filename, e.lineno);
       });
       window.addEventListener('unhandledrejection', function(e) {
-        window.__errors.push({msg: String(e.reason), type: 'promise'});
-        console.error('[PROMISE ERROR]', String(e.reason));
+        window.__errors.push({msg: String(e.reason).substring(0,500), type: 'promise'});
       });
     </script>
     <script type="module" crossorigin src="/assets/main-BRMGV53A.js"></script>
