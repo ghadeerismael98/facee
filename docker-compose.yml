@@ -18,11 +18,7 @@ services:
     build: ./vela-poster
     ports:
       - "${POSTER_PORT:-3333}:${POSTER_PORT:-3333}"
-      - "5001:5001"
-      - "5002:5002"
-      - "5003:5003"
-      - "5004:5004"
-      - "5005:5005"
+      - "5001-5020:5001-5020"
     environment:
       - VELA_API_URL=http://ghost-browser:1306
       - VELA_API_KEY=${API_KEY}
