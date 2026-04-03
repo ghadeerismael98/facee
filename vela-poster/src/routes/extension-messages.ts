@@ -51,6 +51,22 @@ extensionMessageRouter.post('/message', async (req, res) => {
       // ── Campaign control ────────────────────────────────────────
       case 'POST_PAYLOAD': {
         message._profileId = profileId;
+
+        // Override group URLs from server storage (popup may send stale in-memory state)
+        try {
+          const glData = await storage.get('local', ['fb-group-lists']);
+          const gl = glData?.['fb-group-lists'];
+          const groupLists = gl?.state?.groupLists || gl?.state?.state?.groupLists || [];
+          const selectedId = gl?.state?.selectedGroupListId || gl?.state?.state?.selectedGroupListId;
+          const selectedList = groupLists.find((g: any) => g.id === selectedId) || groupLists[0];
+          if (selectedList?.urls?.length) {
+            message.payload.group = { urls: selectedList.urls };
+            console.log(`[POST_PAYLOAD] Using ${selectedList.urls.length} URLs from server storage (list: "${selectedList.name}")`);
+          }
+        } catch (e) {
+          console.warn('[POST_PAYLOAD] Could not override groups from storage, using popup payload');
+        }
+
         const result = await campaignRunner.start(message);
         res.json(result);
         return;
