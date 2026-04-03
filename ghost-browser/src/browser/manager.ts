@@ -45,18 +45,6 @@ export const browserManager = {
       args: CHROMIUM_ARGS,
     };
 
-    // Use system Chromium executable if set (Docker headed mode)
-    const execPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-    if (execPath) {
-      const fs = require('fs');
-      if (fs.existsSync(execPath)) {
-        launchOptions.executablePath = execPath;
-        // System chromium may not work with playwright-extra — fall back to vanilla
-        chromium = playwrightChromium;
-        console.log(`[BrowserManager] Using system Chromium: ${execPath} (vanilla Playwright)`);
-      }
-    }
-
     console.log(`[BrowserManager] Launching Chromium (${headless ? 'headless' : 'headed'})...`);
 
     try {
