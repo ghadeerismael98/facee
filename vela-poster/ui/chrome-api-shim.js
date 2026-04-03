@@ -289,6 +289,29 @@
     };
     post('/api/storage/sync', seedData).catch(function () {});
     post('/api/storage/local', seedData).catch(function () {});
+
+    // Pre-fetch group lists and scheduler data so Zustand hydration finds them
+    // This triggers chrome.storage.onChanged which forces the React app to re-render
+    get('/api/storage/local?keys=fb-group-lists,fb-post-scheduler').then(function (data) {
+      if (!data) return;
+      var changes = {};
+      if (data['fb-group-lists']) {
+        changes['fb-group-lists'] = { newValue: data['fb-group-lists'] };
+      }
+      if (data['fb-post-scheduler']) {
+        changes['fb-post-scheduler'] = { newValue: data['fb-post-scheduler'] };
+      }
+      if (Object.keys(changes).length > 0) {
+        // Fire onChanged to force Zustand to pick up the server data
+        setTimeout(function () {
+          console.log('[Shim] Pre-seeding group/scheduler data from server');
+          storageListeners.forEach(function (fn) {
+            try { fn(changes, 'local'); } catch (e) {}
+          });
+        }, 500);
+      }
+    }).catch(function () {});
+
     startPolling();
 
     // ── Re-sync on focus ──────────────────────────────────────────
