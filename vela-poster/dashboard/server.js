@@ -279,7 +279,7 @@ app.post('/api/dashboard/sync-groups', async (req, res) => {
   if (!profileIds?.length || !urls?.length) return res.status(400).json({ error: 'profileIds and urls required' });
 
   const listId = 'dashboard-unified';
-  const newList = { id: listId, name: listName || 'Dashboard Groups', urls };
+  const newList = { id: listId, name: listName || 'Dashboard Groups', urls, count: urls.length, createdAt: new Date().toISOString() };
 
   try {
     await Promise.all(profileIds.map(async (profileId) => {
