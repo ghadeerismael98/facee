@@ -10,6 +10,16 @@
   var VELA_API = 'http://127.0.0.1:1306';
   var PROFILE_ID = 'default'; // Will be resolved async
 
+  // ── Polyfill crypto.randomUUID (not available on HTTP) ─────────
+  if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+    crypto.randomUUID = function () {
+      return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, function (c) {
+        var r = crypto.getRandomValues(new Uint8Array(1))[0];
+        return (c ^ (r & (15 >> (c / 4)))).toString(16);
+      });
+    };
+  }
+
   // ── Block IndexedDB ────────────────────────────────────────────
   // The popup bundle uses IndexedDB (Zustand persist) as primary storage,
   // but our data lives on the server via chrome.storage shim.
