@@ -71,6 +71,11 @@ app.get('/api/profiles', async (_req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/profile-ports', async (_req, res) => {
+  try { res.json(await posterApi('GET', '/api/profile-ports')); }
+  catch (e) { res.json({}); }
+});
+
 app.post('/api/profiles/create', async (req, res) => {
   try {
     const r = await fetch(`${VELA_API_URL}/api/profiles`, {

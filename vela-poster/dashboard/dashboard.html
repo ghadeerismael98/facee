@@ -518,7 +518,7 @@
         var res = await api('GET', '/api/profiles');
         profiles = res.profiles || [];
         try {
-          var pm = await fetch(POSTER + '/api/profile-ports').then(function(r) { return r.json(); });
+          var pm = await api('GET', '/api/profile-ports');
           portMap = pm || {};
         } catch(e) { portMap = {}; }
 
