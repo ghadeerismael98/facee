@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Install Chromium dependencies
+# Install Chromium dependencies + Tor
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
@@ -19,8 +19,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Install Playwright Chromium only (skip other browsers)
-RUN npx playwright install chromium
+# Install Playwright Chromium — install as root, then fix permissions for ghost user
+RUN npx playwright install --with-deps chromium \
+    && chmod -R 755 /root/.cache/ms-playwright || true
+# Also install for the ghost user path
+RUN mkdir -p /home/ghost/.cache && cp -r /root/.cache/ms-playwright /home/ghost/.cache/ \
+    && chown -R ghost:ghost /home/ghost/.cache
 
 # Copy source and build
 COPY tsconfig.json ./
