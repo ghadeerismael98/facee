@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = 4000;
@@ -10,12 +9,10 @@ const VELA_API_URL = process.env.VELA_API_URL || 'http://127.0.0.1:1306';
 const VELA_API_KEY = process.env.VELA_API_KEY || '';
 const DASH_USER = process.env.DASH_USER || '';
 const DASH_PASS = process.env.DASH_PASS || '';
-const VNC_HOST = process.env.VNC_HOST || 'ghost-browser';
 
 // ─── Basic auth (if DASH_PASS is set) ───
 if (DASH_PASS) {
   app.use((req, res, next) => {
-    // Skip auth for health check
     if (req.path === '/health') return next();
     const auth = req.headers.authorization;
     if (!auth || !auth.startsWith('Basic ')) {
@@ -29,14 +26,6 @@ if (DASH_PASS) {
   });
   console.log(`[Dashboard] Basic auth enabled (user: ${DASH_USER})`);
 }
-
-// ─── noVNC WebSocket proxy ───
-app.use('/vnc', createProxyMiddleware({
-  target: `http://${VNC_HOST}:6080`,
-  changeOrigin: true,
-  ws: true,
-  pathRewrite: { '^/vnc': '' },
-}));
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -530,17 +519,4 @@ app.post('/api/dashboard/upload-video', async (req, res) => {
 
 // ─── Serve dashboard ───
 app.get('/', (_req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
-const server = require('http').createServer(app);
-// Enable WebSocket upgrade for noVNC proxy
-const vncProxy = createProxyMiddleware({
-  target: `http://${VNC_HOST}:6080`,
-  changeOrigin: true,
-  ws: true,
-});
-server.on('upgrade', (req, socket, head) => {
-  if (req.url && req.url.startsWith('/vnc')) {
-    req.url = req.url.replace(/^\/vnc/, '');
-    vncProxy.upgrade(req, socket, head);
-  }
-});
-server.listen(PORT, () => { console.log(`[Dashboard] Running on http://0.0.0.0:${PORT}`); });
+app.listen(PORT, () => { console.log(`[Dashboard] Running on http://0.0.0.0:${PORT}`); });

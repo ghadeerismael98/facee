@@ -9,70 +9,48 @@
     body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
     .toolbar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-    .toolbar .status{font-size:10px;color:var(--text-dim);font-family:var(--mono);white-space:nowrap}
+    .toolbar .status{font-size:10px;font-family:var(--mono);white-space:nowrap}
     .toolbar .status.live{color:#4ade80}
+    .toolbar .status.off{color:#f87171}
     .toolbar button{padding:4px 10px;background:var(--border);color:var(--text-dim);border:none;border-radius:4px;cursor:pointer;font-size:11px}
-    .toolbar button:hover{opacity:.85}
     .toolbar button.danger{background:#7f1d1d;color:#f87171}
 
-    .vnc-container{flex:1;position:relative;overflow:hidden;background:#000}
-    .vnc-container iframe{width:100%;height:100%;border:none}
+    .viewport{flex:1;position:relative;overflow:hidden;cursor:crosshair;display:flex;align-items:center;justify-content:center;background:#111}
+    .viewport img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
 
-    .fallback{flex:1;display:flex;flex-direction:column}
-    .fallback .viewport{flex:1;position:relative;overflow:hidden;cursor:crosshair;display:flex;align-items:center;justify-content:center;background:#111}
-    .fallback .viewport img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
-    .fallback .input-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
-    .fallback .input-bar input{flex:1;padding:5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px}
-    .fallback .input-bar button{padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px}
-    .fallback .hint{font-size:10px;color:var(--text-dim)}
-    .fallback button.key{padding:3px 8px;background:var(--border);color:var(--text-dim);border:none;border-radius:3px;cursor:pointer;font-size:10px}
+    .input-bar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+    .input-bar input{flex:1;padding:5px 10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px}
+    .input-bar button{padding:5px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px}
+    .input-bar .hint{font-size:10px;color:var(--text-dim)}
+    .input-bar button.key{padding:3px 8px;background:var(--border);color:var(--text-dim);border:none;border-radius:3px;cursor:pointer;font-size:10px}
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <span class="status" id="status">Connecting...</span>
+    <span class="status off" id="status">Connecting...</span>
     <span style="flex:1"></span>
-    <button onclick="switchMode();" id="modeBtn">Switch to Screenshot mode</button>
     <button class="danger" onclick="closeTab()">Close Tab</button>
   </div>
 
-  <!-- noVNC mode -->
-  <div class="vnc-container" id="vncMode">
-    <iframe id="vncFrame" src="about:blank"></iframe>
+  <div class="viewport" id="viewport">
+    <img id="screen" alt="Browser" style="display:none">
+    <div id="loadingMsg" style="color:var(--text-dim)">Opening Facebook...</div>
   </div>
 
-  <!-- Screenshot fallback mode -->
-  <div class="fallback" id="screenshotMode" style="display:none">
-    <div class="viewport" id="viewport">
-      <img id="screen" alt="Browser" style="display:none">
-      <div id="loadingMsg" style="color:var(--text-dim)">Loading...</div>
-    </div>
-    <div class="input-bar">
-      <span class="hint">Type:</span>
-      <input id="typeInput" type="text" placeholder="Type here, press Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendType()}">
-      <button onclick="sendType()">Send</button>
-      <button class="key" onclick="sendKey('Tab')">Tab</button>
-      <button class="key" onclick="sendKey('Enter')">Enter</button>
-      <button class="key" onclick="sendKey('Backspace')">&#9003;</button>
-    </div>
+  <div class="input-bar">
+    <span class="hint">Type:</span>
+    <input id="typeInput" type="text" placeholder="Type here, press Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendType()}">
+    <button onclick="sendType()">Send</button>
+    <button class="key" onclick="sendKey('Tab')">Tab</button>
+    <button class="key" onclick="sendKey('Enter')">Enter</button>
+    <button class="key" onclick="sendKey('Backspace')">&#9003;</button>
   </div>
 
   <script>
     var params = new URLSearchParams(window.location.search);
     var tabId = params.get('tabId');
     var DASH = window.location.origin;
-    var currentMode = 'vnc';
     var refreshInterval = null;
-
-    // ─── noVNC mode ───
-    function startVNC() {
-      var vncUrl = DASH + '/vnc/vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=1000';
-      document.getElementById('vncFrame').src = vncUrl;
-      document.getElementById('status').textContent = 'Live (noVNC)';
-      document.getElementById('status').className = 'status live';
-    }
-
-    // ─── Screenshot fallback ───
     var imgEl = document.getElementById('screen');
     var loadingEl = document.getElementById('loadingMsg');
     var statusEl = document.getElementById('status');
@@ -92,13 +70,13 @@
             imgEl.src = 'data:image/png;base64,' + base64;
             imgEl.style.display = 'block';
             loadingEl.style.display = 'none';
-            statusEl.textContent = 'Live (screenshots)';
+            statusEl.textContent = 'Live';
             statusEl.className = 'status live';
           }
         })
         .catch(function() {
           statusEl.textContent = 'Disconnected';
-          statusEl.className = 'status';
+          statusEl.className = 'status off';
         });
     }
 
@@ -109,7 +87,7 @@
       fetch(DASH + '/api/browser/click/' + tabId, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ x: x, y: y })
-      }).then(function() { setTimeout(grabScreenshot, 300); });
+      }).then(function() { setTimeout(grabScreenshot, 200); });
     });
 
     document.getElementById('viewport').addEventListener('wheel', function(e) {
@@ -117,7 +95,7 @@
       fetch(DASH + '/api/browser/scroll/' + tabId, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deltaY: e.deltaY > 0 ? 400 : -400 })
-      }).then(function() { setTimeout(grabScreenshot, 200); });
+      }).then(function() { setTimeout(grabScreenshot, 150); });
     }, { passive: false });
 
     function sendType() {
@@ -126,33 +104,14 @@
       fetch(DASH + '/api/browser/type/' + tabId, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: input.value })
-      }).then(function() { input.value = ''; setTimeout(grabScreenshot, 200); });
+      }).then(function() { input.value = ''; setTimeout(grabScreenshot, 150); });
     }
 
     function sendKey(key) {
       fetch(DASH + '/api/browser/press/' + tabId, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: key })
-      }).then(function() { setTimeout(grabScreenshot, 200); });
-    }
-
-    // ─── Mode switching ───
-    function switchMode() {
-      if (currentMode === 'vnc') {
-        currentMode = 'screenshot';
-        document.getElementById('vncMode').style.display = 'none';
-        document.getElementById('screenshotMode').style.display = 'flex';
-        document.getElementById('modeBtn').textContent = 'Switch to noVNC mode';
-        document.getElementById('vncFrame').src = 'about:blank';
-        startScreenshots();
-      } else {
-        currentMode = 'vnc';
-        document.getElementById('vncMode').style.display = 'block';
-        document.getElementById('screenshotMode').style.display = 'none';
-        document.getElementById('modeBtn').textContent = 'Switch to Screenshot mode';
-        if (refreshInterval) clearInterval(refreshInterval);
-        startVNC();
-      }
+      }).then(function() { setTimeout(grabScreenshot, 150); });
     }
 
     function closeTab() {
@@ -161,13 +120,7 @@
       document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b8994">Tab closed</div>';
     }
 
-    // ─── Init ───
     if (tabId) {
-      // Start with screenshot mode — works reliably per-profile
-      currentMode = 'screenshot';
-      document.getElementById('vncMode').style.display = 'none';
-      document.getElementById('screenshotMode').style.display = 'flex';
-      document.getElementById('modeBtn').textContent = 'Switch to noVNC mode';
       setTimeout(startScreenshots, 2000);
     } else {
       loadingEl.textContent = 'Error: No tab ID';

@@ -2,15 +2,13 @@ services:
   ghost-browser:
     build: ./ghost-browser
     ports:
-      - "127.0.0.1:1306:1306"   # API — internal only, not exposed to internet
-      - "127.0.0.1:6080:6080"   # noVNC — proxied through dashboard, not direct
+      - "127.0.0.1:1306:1306"   # API — internal only
     volumes:
       - ghost-data:/data
     environment:
       - PORT=1306
       - API_KEY=${API_KEY}
       - DATA_DIR=/data
-      - VNC_PASSWORD=${VNC_PASSWORD:-ghostvnc}
     shm_size: 2gb
     security_opt:
       - seccomp=unconfined
@@ -45,7 +43,6 @@ services:
       - VELA_API_KEY=${API_KEY}
       - DASH_USER=${DASH_USER:-admin}
       - DASH_PASS=${DASH_PASS:-}
-      - VNC_HOST=ghost-browser
     depends_on:
       - vela-poster
     restart: unless-stopped
