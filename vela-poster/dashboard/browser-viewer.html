@@ -163,7 +163,12 @@
 
     // ─── Init ───
     if (tabId) {
-      setTimeout(startVNC, 1500);
+      // Start with screenshot mode — works reliably per-profile
+      currentMode = 'screenshot';
+      document.getElementById('vncMode').style.display = 'none';
+      document.getElementById('screenshotMode').style.display = 'flex';
+      document.getElementById('modeBtn').textContent = 'Switch to noVNC mode';
+      setTimeout(startScreenshots, 2000);
     } else {
       loadingEl.textContent = 'Error: No tab ID';
     }
