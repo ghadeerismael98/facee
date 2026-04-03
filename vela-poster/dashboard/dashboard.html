@@ -662,11 +662,12 @@
           // Open the remote browser viewer in the profile's iframe
           var iframe = document.getElementById('iframe-' + profileId);
           if (iframe) {
-            iframe.src = 'http://' + window.location.hostname + ':4000/browser-viewer?tabId=' + tabId;
+            var profilePort = portMap[profileId] || 3333;
+            iframe.src = 'http://' + window.location.hostname + ':4000/browser-viewer?tabId=' + tabId + '&profile=' + profileId + '&port=' + profilePort;
             iframe.style.height = '620px';
           } else {
-            // If no iframe, open in new window
-            window.open('http://' + window.location.hostname + ':4000/browser-viewer?tabId=' + tabId, '_blank');
+            var profilePort2 = portMap[profileId] || 3333;
+            window.open('http://' + window.location.hostname + ':4000/browser-viewer?tabId=' + tabId + '&profile=' + profileId + '&port=' + profilePort2, '_blank');
           }
         }
       } catch(e) { console.warn('Could not open Facebook:', e); alert('Failed to open Facebook: ' + e.message); }

@@ -117,7 +117,14 @@
     function closeTab() {
       if (refreshInterval) clearInterval(refreshInterval);
       fetch(DASH + '/api/browser/tab/' + tabId, { method: 'DELETE' });
-      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b8994">Tab closed</div>';
+      // Go back to the poster popup UI
+      var profileId = params.get('profile');
+      var port = params.get('port');
+      if (port) {
+        window.location.href = 'http://' + window.location.hostname + ':' + port + '/';
+      } else {
+        window.location.href = 'http://' + window.location.hostname + ':3333/';
+      }
     }
 
     // Validate tabId to prevent path traversal
