@@ -495,7 +495,7 @@
 
   <script>
     var DASHBOARD = window.location.origin;
-    var POSTER = 'http://localhost:3333';
+    var POSTER = 'http://' + window.location.hostname + ':3333';
     var profiles = [];
     var portMap = {};
     var selectedIds = JSON.parse(localStorage.getItem('cc_selectedIds') || '[]');
@@ -730,7 +730,7 @@
         var initial = (p.name || '?')[0].toUpperCase();
         var color = p.color || '#4A90D9';
         var port = portMap[p.id] || 3333;
-        var iframeSrc = 'http://localhost:' + port + '/';
+        var iframeSrc = 'http://' + window.location.hostname + ':' + port + '/';
         var checked = selectedIds.indexOf(p.id) !== -1;
         var cooldown = profileCooldowns[p.id];
         var cooldownText = cooldown ? formatCooldown(cooldown) : '';
