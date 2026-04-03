@@ -104,32 +104,74 @@ async function disableHttpsFirstOnAllProfiles(): Promise<void> {
 // Requests on these ports automatically get the X-Vela-Profile header set.
 const PROFILE_PORT_BASE = 5001;
 const profilePortMap: Record<string, number> = {};
+const profileServers: Record<string, any> = {}; // track servers so we can close them
+let nextProfilePort = PROFILE_PORT_BASE;
+
+function startPortForProfile(profileId: string, profileName: string): number {
+  if (profilePortMap[profileId]) return profilePortMap[profileId];
+
+  const port = nextProfilePort++;
+  profilePortMap[profileId] = port;
+
+  const profileApp = express();
+  profileApp.use((req, _res, next) => {
+    req.headers['x-vela-profile'] = profileId;
+    next();
+  });
+  profileApp.use(app);
+
+  const server = profileApp.listen(port, () => {
+    console.log(`[Server] Profile "${profileName}" on port ${port}`);
+  });
+  profileServers[profileId] = server;
+
+  return port;
+}
+
+function stopPortForProfile(profileId: string): void {
+  const server = profileServers[profileId];
+  if (server) {
+    server.close();
+    delete profileServers[profileId];
+    delete profilePortMap[profileId];
+    console.log(`[Server] Profile "${profileId}" port stopped`);
+  }
+}
 
 async function startProfilePorts(): Promise<void> {
   try {
     const response = await velaClient.listProfiles();
     const profiles = Array.isArray(response) ? response : (response as any).profiles || [];
-
-    profiles.forEach((profile: any, i: number) => {
-      const port = PROFILE_PORT_BASE + i;
-      profilePortMap[profile.id] = port;
-
-      // Create a thin middleware that sets the profile header, then delegates to the main app
-      const profileApp = express();
-      profileApp.use((req, _res, next) => {
-        req.headers['x-vela-profile'] = profile.id;
-        next();
-      });
-      profileApp.use(app);
-
-      profileApp.listen(port, () => {
-        console.log(`[Server] Profile "${profile.name}" on port ${port}`);
-      });
+    profiles.forEach((profile: any) => {
+      startPortForProfile(profile.id, profile.name);
     });
   } catch (e: any) {
     console.warn('[Server] Could not start profile ports:', e.message);
   }
 }
+
+// Auto-sync profile ports: add new profiles, remove deleted ones
+setInterval(async () => {
+  try {
+    const response = await velaClient.listProfiles();
+    const profiles = Array.isArray(response) ? response : (response as any).profiles || [];
+    const currentIds = new Set(profiles.map((p: any) => p.id));
+
+    // Start ports for new profiles
+    profiles.forEach((profile: any) => {
+      if (!profilePortMap[profile.id]) {
+        startPortForProfile(profile.id, profile.name);
+      }
+    });
+
+    // Stop ports for deleted profiles
+    for (const id of Object.keys(profilePortMap)) {
+      if (!currentIds.has(id)) {
+        stopPortForProfile(id);
+      }
+    }
+  } catch { /* skip */ }
+}, 10000);
 
 // Expose the port map via API so the dashboard can find them
 app.get('/api/profile-ports', (_req, res) => {
