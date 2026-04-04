@@ -4,97 +4,122 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This project has **two components**:
+This project has **three components**:
 
-1. **Chrome Extension** (Manifest V3) in `extention/` — the original "Facebook Groups Bulk Poster & Scheduler"
-2. **Vela Poster Server** in `vela-poster/` — a standalone Node.js server that does the same thing via the Vela Browser API, running in Docker
+1. **Chrome Extension** (Manifest V3) in `extention/` — the original "Facebook Groups Bulk Poster & Scheduler" (legacy)
+2. **Ghost Browser** in `ghost-browser/` — containerized Playwright + Chrome browser engine with fingerprint spoofing (replaces Vela Browser)
+3. **Vela Poster Server** in `vela-poster/` — posting orchestration server + dashboard UI
 
-The Vela server is the **active development target**. The Chrome extension is legacy.
+Ghost Browser + Vela Poster are the **active development targets**. The Chrome extension is legacy.
 
 ## Repository Structure
+
+### `ghost-browser/` — Browser Engine (active)
+
+- **Dockerfile** — Node.js + Google Chrome + Tor, runs as non-root
+- **src/index.ts** — Express server entry, port 1306
+- **src/browser/manager.ts** — Launches Chrome with stealth plugin, fallback to Chromium
+- **src/browser/context-manager.ts** — Per-profile BrowserContexts with isolated cookies/storage/proxy/Tor
+- **src/browser/tab-manager.ts** — One-tab-per-profile enforcement with per-profile locking (prevents OOM)
+- **src/fingerprint/** — Seed-based deterministic fingerprinting (18 vectors)
+  - `prng.ts` — Mulberry32 seeded PRNG
+  - `generator.ts` — Seed → platform-coherent fingerprint config + matching UA
+  - `inject.ts` — Builds addInitScript JS payload for all spoofing vectors
+- **src/tor/manager.ts** — Per-profile Tor instances with own exit IPs
+- **src/profiles/store.ts** — Profile CRUD on disk (JSON files)
+- **src/persistence/state-manager.ts** — Cookie + localStorage save/restore
+- **src/routes/** — Vela-compatible REST API (tabs, profiles, windows, status)
+- **src/middleware/auth.ts** — Timing-safe API key validation
+
+### `vela-poster/` — Posting Server (active)
+
+- **src/server.ts** — Express server with auto-syncing per-profile ports (5001+), port recycling
+- **src/vela/client.ts** — HTTP client for Ghost Browser API (same API as Vela)
+- **src/orchestrator/** — Posting flow: campaign-runner (one tab at a time, sequential), composer, post-button, uploader, spintax
+- **src/routes/extension-messages.ts** — Campaign dispatch, overrides group URLs from server storage
+- **src/storage/storage.ts** — File-based storage with ProfileStorageManager
+- **ui/chrome-api-shim.js** — Intercepts chrome.* API calls, premium bypass, IndexedDB blocking, crypto.randomUUID polyfill, storage polling for live feedback
+- **ui/index.html** — Popup UI with console.error capture for debugging
+
+### `vela-poster/dashboard/` — Command Center (active)
+
+- **dashboard.html** — Full command center UI with profile management (add/delete), FB Login (screenshot viewer), Get Groups (auto-scrape), group sync, unified posting
+- **browser-viewer.html** — Screenshot-based remote browser viewer with zoom controls
+- **server.js** — Express server with basic auth, browser proxy endpoints, profile CRUD, group sync, get-groups scraper, post-unified with per-profile URL override
 
 ### `extention/` — Chrome Extension (legacy)
 Note the misspelling — intentional, do not rename.
 
-- **manifest.json** — MV3 manifest
-- **background.js** — Service worker: posting orchestration, Spintax, credits
-- **content.js** — Content script: Facebook DOM interaction
-- **assets/main-BRMGV53A.js** — Pre-built popup UI (Vite + React + TS), source lives elsewhere
+## Deployment
 
-### `vela-poster/` — Vela Browser Server (active)
+### Hetzner VPS (77.42.95.15)
+- **GitHub**: `ghadeerismael98/facee` (private)
+- **Root docker-compose.yml** runs all 3 services
+- **Dashboard**: port 4000 (only port exposed to internet, basic auth protected)
+- **Ghost Browser**: port 1306 (127.0.0.1 only)
+- **Poster**: ports 3333, 5001-5020
 
-- **Dockerfile / docker-compose.yml** — Docker setup with poster + dashboard services
-- **src/server.ts** — Express server with profile-aware storage, per-profile campaign runners, per-profile ports (5001+)
-- **src/vela/client.ts** — HTTP client for Vela Browser API (port 1306)
-- **src/orchestrator/** — Posting flow: campaign-runner (global posting lock), composer (execCommand), post-button, uploader, spintax
-- **src/routes/** — API routes: extension-messages (per-profile event queues), storage (per-profile), profiles
-- **src/storage/storage.ts** — File-based storage with `ProfileStorageManager` for per-profile isolation
-- **ui/chrome-api-shim.js** — Intercepts `chrome.*` API calls, handles profile detection (URL param or title-nonce), premium bypass, storage sync
-- **ui/index.html** — Serves the popup UI with shim injected before the bundle
-- **ui/assets/main-BRMGV53A.js** — Same popup bundle as the extension (reused via shim)
-- **dashboard/** — Separate service: command center UI on port 4000
+```bash
+# Deploy
+git push && ssh root@77.42.95.15 "cd /opt/facee && git pull && docker compose up --build -d"
+```
 
-### `vela-poster/dashboard/` — Enhanced Command Center
+### Existing services on VPS (DO NOT TOUCH)
+- `nevebots-neve` on port 19003
+- `nevebots-postgres` on port 5432
 
-- **dashboard.html** — Full command center: unified post editor, group management, profile selection, smart scheduling, collapsible profiles grid with iframe popup UIs
-- **server.js** — Express server with endpoints: post-unified (with scheduling strategies), sync-groups (Zustand format), schedule-status, upload-video, stop-all
-- **Dockerfile / package.json** — Separate Docker service
+## Ghost Browser Architecture
 
-## Vela Poster Architecture
+### Fingerprint System (Critical — must maintain coherence)
+- A 6-digit seed per profile drives a deterministic PRNG
+- The seed determines the platform (windows/mac/linux)
+- ALL values must be coherent with that platform:
+  - `navigator.userAgent` — generated to match platform
+  - `navigator.appVersion` — derived from userAgent
+  - `navigator.platform` — Win32/MacIntel/Linux x86_64
+  - `navigator.vendor` — Google Inc./Apple Computer, Inc.
+  - `window.devicePixelRatio` — 1-1.5 (Windows), 2 (Mac), 1 (Linux)
+  - WebGL GPU — platform-specific pool
+  - Canvas noise, AudioContext noise, screen dimensions, etc.
+- **Never let real Chrome UA leak through** — override in fingerprint injection
 
-### Three Services (Docker)
-- **Poster** (port 3333) — main server, configure groups/posts here
-- **Per-profile ports** (5001, 5002, ...) — same poster app, auto-set X-Vela-Profile, used by dashboard iframes for origin isolation
-- **Dashboard** (port 4000) — enhanced command center with unified posting, group sync, smart time distribution, profile selection
-
-### Posting Flow
-1. JS `.click()` on composer trigger (multi-language text match, search ALL dialogs)
-2. `document.execCommand('insertText')` via `executeScript` — works without window focus
-3. JS `.click()` on post button (multi-language aria-label match, search ALL dialogs)
-4. Global posting lock serializes inject+post step across profiles
+### Tab Management
+- One tab per profile maximum (enforced by per-profile lock)
+- Campaign runner posts sequentially: open → post → close → wait → next group
+- Never multiple tabs open simultaneously for same profile
 
 ### Profile Isolation
-- Shim detects Vela profileId via URL param `?profile=` or title-nonce trick
-- `X-Vela-Profile` header on all requests
-- Per-profile storage: `~/.face-poster/profiles/{profileId}/`
-- Per-profile campaign runners — multiple profiles post with global posting lock
-- Per-profile event queues for real-time UI updates
-- Per-profile ports (5001+) for dashboard iframes — different origins = isolated browser storage
+- Each profile = separate BrowserContext (cookies, storage, cache fully isolated)
+- Optional Tor circuit per profile (own exit IP)
+- Optional proxy per profile
+- Persistent cookies saved to /data/profiles/{id}/cookies.json
 
-### Premium Bypass
-- `chrome-api-shim.js` intercepts all `fetch()` to `fbgroupbulkposter.com`
-- Returns fake premium/subscription/credits responses
-- Storage always overrides `isPremium: true`, `postsRemaining: 999999`
-- Protects group lists from empty overwrites during hydration
+## Chrome API Shim (ui/chrome-api-shim.js)
 
-### Vela API Quirks
-- `executeScript` expects `{ script: "..." }` not `{ expression: "..." }`, returns `{ result: ... }`
-- `createTab` with `profileId` (camelCase) creates tab in correct Vela profile
-- `nativeClick`/`keyboard/insert-text` need window focus — unusable for parallel posting
-- `document.execCommand('insertText')` via executeScript works without focus — use this
-- Don't retry execCommand — causes double text
-- Facebook pages have multiple `[role="dialog"]` — always search ALL, never querySelector first match
-
-### Docker
-- Multi-stage build, runs as non-root, volume `poster-data` for persistence
-- `VELA_API_URL=http://host.docker.internal:1306` to reach Vela from container
-- `.env` has `VELA_API_URL`, `VELA_API_KEY`, `PORT`
-- Rebuild: `cd vela-poster && docker compose up --build -d`
-- Logs: `docker compose logs -f`
-
-### Command Center Features
-- **Unified Post & Groups** (collapsible): Rich text editor (contenteditable) with B/I/U/H1/H2/lists toolbar, spintax editor with save/load templates (`spintax_templates_v1` localStorage key shared with popup), emoji picker (`emoji-picker-element` web component), image/video upload, delivery pacing, group URL management with sync-to-selected
-- **Profile Selection**: Checkboxes on cards + dropdown (Select/Deselect All), persisted to localStorage
-- **Smart Time Distribution**: 5 strategies — Immediate, Sequential (safest), Staggered, Time Window, Group Spread (split groups across profiles). Live time estimate preview.
-- **Collapsible Profiles**: Profile grid with iframes in collapsible section
-- **Schedule Status**: Polls `/api/dashboard/schedule-status` for countdown timers on waiting profiles
-- **Port 3333 = "default" profile** — synced groups from dashboard only go to UUID-based profiles (5001+). Use Command Center (4000) or per-profile ports for posting.
+Key behaviors:
+- **IndexedDB blocked** — forces popup to use chrome.storage.local (our shim) instead of empty IndexedDB
+- **crypto.randomUUID polyfill** — not available on HTTP (non-secure context)
+- **Premium bypass** — intercepts fbgroupbulkposter.com requests, returns fake premium
+- **Storage polling** — polls posting status every 2s for live feedback
+- **Pre-seeds group data** — fires onChanged after profile detection to populate Zustand state
 
 ## Development Notes
 
 - The popup UI bundle (`main-BRMGV53A.js`) is a pre-built artifact — do not edit it. Modify behavior via the shim or server-side routes.
-- When replicating popup UI features in the dashboard, search the bundle source (`grep`) and copy the exact structure/labels/behavior — don't approximate.
-- Facebook DOM selectors must be multi-language (Arabic, English, Spanish, French, etc.) — see `src/orchestrator/selectors.ts`
-- Facebook is an SPA — wait for content to render after load event, not just page load
-- When modifying posting logic in the Chrome extension, keep content.js unchanged (harden background.js only)
-- Configure groups via Command Center (port 4000) or per-profile ports (5001+). Port 3333 is the unconfigured default profile.
+- Facebook DOM selectors must be multi-language — see `src/orchestrator/selectors.ts`
+- Facebook is an SPA — wait for content to render after load event
+- Post Selected reads each profile's own group URLs from server storage (not dashboard's group list)
+- Profile ports auto-sync every 10 seconds — no restart needed for new/deleted profiles
+- Deleted profile ports are recycled (lowest available reused)
+
+## Security
+
+- Dashboard protected by basic auth (DASH_USER/DASH_PASS in .env)
+- API key comparison uses crypto.timingSafeEqual
+- Ghost Browser API bound to 127.0.0.1 only
+- Profile IDs validated (alphanumeric only, prevents path traversal)
+- File upload filenames sanitized (path.basename)
+- Navigate endpoint validates URLs (http/https only)
+- Scroll endpoint sanitizes deltaY (parseInt, prevents code injection)
+- Tab IDs validated on all browser proxy endpoints
+- JSON body limit: 10MB
