@@ -98,46 +98,6 @@ app.delete('/api/profiles/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/profiles/:id/import-cookies', async (req, res) => {
-  const profileId = req.params.id;
-  if (!isValidUuid(profileId)) return res.status(400).json({ error: 'Invalid profile ID' });
-  const { cookies } = req.body;
-  if (!Array.isArray(cookies) || !cookies.length) return res.status(400).json({ error: 'cookies array required' });
-
-  try {
-    // Create a tab in the profile to set cookies on
-    const tabRes = await fetch(`${VELA_API_URL}/api/tabs`, {
-      method: 'POST',
-      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: 'https://www.facebook.com', profileId }),
-    });
-    const tab = await tabRes.json();
-    if (!tab.id) throw new Error('Failed to create tab');
-
-    // Add cookies to the browser context via the tab
-    await fetch(`${VELA_API_URL}/api/tabs/${tab.id}/cookies`, {
-      method: 'POST',
-      headers: { 'X-API-Key': VELA_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cookies }),
-    });
-
-    // Reload the page to apply cookies (should now be logged in)
-    await fetch(`${VELA_API_URL}/api/tabs/${tab.id}/reload`, {
-      method: 'POST',
-      headers: { 'X-API-Key': VELA_API_KEY },
-    });
-
-    // Wait a bit then close the tab (cookies are persisted in the context)
-    await new Promise(r => setTimeout(r, 3000));
-    await fetch(`${VELA_API_URL}/api/tabs/${tab.id}`, {
-      method: 'DELETE',
-      headers: { 'X-API-Key': VELA_API_KEY },
-    }).catch(() => {});
-
-    res.json({ success: true, count: cookies.length });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 app.post('/api/profiles/:id/open-facebook', async (req, res) => {
   try {
     // Close any existing tabs for this profile first to avoid RAM leak
