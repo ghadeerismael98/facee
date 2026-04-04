@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 \
     libpango-1.0-0 libcairo2 libasound2 libxshmfence1 \
     fonts-noto-color-emoji fonts-liberation fonts-noto-cjk \
-    tor curl gnupg \
+    tor curl gnupg ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome (real Chrome, not Chromium)
