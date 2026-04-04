@@ -3,6 +3,7 @@ import { browserManager } from './manager';
 import { profileStore } from '../profiles/store';
 import { GhostProfile } from '../profiles/types';
 import { buildFingerprintPayload } from '../fingerprint/inject';
+import { generateFingerprint, generateMatchingUA } from '../fingerprint/generator';
 import { stateManager } from '../persistence/state-manager';
 import { torManager } from '../tor/manager';
 
@@ -23,10 +24,14 @@ export const contextManager = {
     const browser = await browserManager.launch();
     const profile = profileStore.get(id);
 
+    // Generate fingerprint-matching UA if no custom UA is set
+    const seed = profile?.fingerprintSeed || 500000;
+    const matchingUA = profile?.userAgent || generateMatchingUA(seed);
+
     // Build context options
     const options: any = {
       viewport: profile?.viewport || { width: 1920, height: 1080 },
-      userAgent: profile?.userAgent || undefined,
+      userAgent: matchingUA,
       locale: profile?.locale || profile?.spoofLanguage || undefined,
       timezoneId: profile?.timezone || profile?.spoofTimezone || undefined,
     };
@@ -51,8 +56,8 @@ export const contextManager = {
 
     // Inject fingerprint if enabled
     if (profile?.fingerprintEnabled !== false) {
-      const seed = profile?.fingerprintSeed || 500000;
-      const payload = buildFingerprintPayload(seed, profile || undefined);
+      const fpProfile = { ...profile, userAgent: matchingUA } as any;
+      const payload = buildFingerprintPayload(seed, fpProfile);
       await context.addInitScript(payload);
     }
 

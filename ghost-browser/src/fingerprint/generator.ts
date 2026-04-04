@@ -252,3 +252,23 @@ export function generateFingerprint(seed: number, platformHint?: string): Finger
 
   return config;
 }
+
+/** Generate a User Agent string that matches the fingerprint platform */
+export function generateMatchingUA(seed: number, platformHint?: string): string {
+  const rng = new SeededPRNG(seed);
+  const platform = platformHint
+    ? detectPlatformFromUA(platformHint)
+    : (['windows', 'mac', 'linux'] as const)[rng.int(0, 2)];
+
+  const chromeVersion = 120 + rng.int(0, 10); // Chrome 120-130
+  const buildNum = 6000 + rng.int(0, 2000);
+
+  switch (platform) {
+    case 'windows':
+      return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.${buildNum}.0 Safari/537.36`;
+    case 'mac':
+      return `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.${buildNum}.0 Safari/537.36`;
+    case 'linux':
+      return `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.${buildNum}.0 Safari/537.36`;
+  }
+}
