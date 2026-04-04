@@ -488,6 +488,26 @@
     </div>
   </div>
 
+    <!-- Import Cookies Modal -->
+    <div id="importCookiesModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:500px;max-width:90vw">
+        <h3 style="font-size:16px;font-weight:600;margin-bottom:8px">Import Cookies</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Export cookies from your browser using an extension like <b>EditThisCookie</b> or <b>Cookie-Editor</b>, then paste the JSON here. This skips the captcha — you'll be logged in instantly.</p>
+        <textarea id="cookiesJson" style="width:100%;height:200px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:var(--mono);resize:vertical" placeholder='Paste cookies JSON here...
+
+Example format:
+[
+  {"name":"c_user","value":"123456","domain":".facebook.com","path":"/"},
+  {"name":"xs","value":"abc123","domain":".facebook.com","path":"/"}
+]'></textarea>
+        <div id="importCookiesError" style="display:none;font-size:12px;color:var(--danger);margin-top:8px"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-post" onclick="importCookies()" style="flex:1">Import & Save</button>
+          <button class="btn" onclick="hideImportCookies()" style="flex:0;background:var(--surface-hover);color:var(--text-dim)">Cancel</button>
+        </div>
+      </div>
+    </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -694,6 +714,59 @@
       }
     }
 
+    // ─── Import Cookies ───
+    var importCookiesProfileId = null;
+    function showImportCookies(profileId) {
+      importCookiesProfileId = profileId;
+      document.getElementById('cookiesJson').value = '';
+      document.getElementById('importCookiesError').style.display = 'none';
+      document.getElementById('importCookiesModal').style.display = 'flex';
+    }
+    function hideImportCookies() {
+      importCookiesProfileId = null;
+      document.getElementById('importCookiesModal').style.display = 'none';
+    }
+    async function importCookies() {
+      var errEl = document.getElementById('importCookiesError');
+      var raw = document.getElementById('cookiesJson').value.trim();
+      if (!raw) { errEl.textContent = 'Paste cookies JSON first'; errEl.style.display = 'block'; return; }
+
+      try {
+        var cookies = JSON.parse(raw);
+        if (!Array.isArray(cookies)) throw new Error('Must be a JSON array');
+        if (!cookies.length) throw new Error('Empty array');
+
+        // Normalize cookies to Playwright format
+        var normalized = cookies.map(function(c) {
+          return {
+            name: c.name,
+            value: c.value,
+            domain: c.domain || '.facebook.com',
+            path: c.path || '/',
+            secure: c.secure !== false,
+            httpOnly: c.httpOnly || false,
+            sameSite: c.sameSite || 'None',
+          };
+        }).filter(function(c) { return c.name && c.value; });
+
+        if (!normalized.length) throw new Error('No valid cookies found');
+
+        errEl.style.display = 'none';
+        var res = await api('POST', '/api/profiles/' + importCookiesProfileId + '/import-cookies', { cookies: normalized });
+        if (res.error) throw new Error(res.error);
+
+        hideImportCookies();
+        showToast(normalized.length + ' cookies imported! Profile is now logged in.', 'success');
+
+        // Refresh the iframe
+        var iframe = document.getElementById('iframe-' + importCookiesProfileId);
+        if (iframe) { var src = iframe.src; iframe.src = 'about:blank'; setTimeout(function() { iframe.src = src; }, 100); }
+      } catch(e) {
+        errEl.textContent = 'Error: ' + e.message;
+        errEl.style.display = 'block';
+      }
+    }
+
     var deleteTargetId = null;
     function showDeleteModal(id, name) {
       deleteTargetId = id;
@@ -782,6 +855,7 @@
           '<div class="card-foot">' +
             '<button class="btn btn-info btn-sm" onclick="openFacebookForProfile(\'' + p.id + '\')" title="Open Facebook in this profile">FB Login</button>' +
             '<button class="btn btn-sm" onclick="getGroupsForProfile(\'' + p.id + '\')" style="background:var(--info-dim);color:var(--info);border:1px solid rgba(96,165,250,.2)" title="Auto-fetch all joined groups from Facebook" id="getgrp-' + p.id + '">Get Groups</button>' +
+            '<button class="btn btn-sm" onclick="showImportCookies(\'' + p.id + '\')" style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(224,120,64,.2);font-size:10px" title="Import cookies from browser to skip captcha">Import Cookies</button>' +
             '<button class="btn btn-post btn-sm" onclick="postOne(\'' + p.id + '\')">Post</button>' +
             '<button class="btn btn-stop btn-sm" onclick="stopOne(\'' + p.id + '\')">Stop</button>' +
             '<span class="post-count" id="count-' + p.id + '"></span>' +
