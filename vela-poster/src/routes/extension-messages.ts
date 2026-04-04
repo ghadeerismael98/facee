@@ -233,7 +233,8 @@ extensionMessageRouter.post('/message', async (req, res) => {
 
       case 'openTab': {
         try {
-          await velaClient.createTab(message.url);
+          // Pass profileId so tab-manager enforces one-tab-per-profile
+          await velaClient.createTab(message.url, profileId || undefined);
           res.json({ opened: true });
         } catch (e: any) {
           res.json({ error: e.message });
