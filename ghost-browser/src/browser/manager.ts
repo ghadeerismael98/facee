@@ -4,7 +4,7 @@ let browser: Browser | null = null;
 
 const headless = process.env.HEADLESS !== 'false';
 
-const CHROMIUM_ARGS = [
+const CHROME_ARGS = [
   '--no-sandbox',
   '--disable-setuid-sandbox',
   '--disable-dev-shm-usage',
@@ -17,10 +17,12 @@ const CHROMIUM_ARGS = [
   '--disable-infobars',
   '--disable-features=VizDisplayCompositor',
   '--disable-gpu-sandbox',
+  '--lang=en-US',
+  '--window-size=1920,1080',
 ];
 
 if (headless) {
-  CHROMIUM_ARGS.push('--disable-gpu', '--disable-software-rasterizer');
+  CHROME_ARGS.push('--disable-gpu', '--disable-software-rasterizer');
 }
 
 let chromium: any = playwrightChromium;
@@ -42,17 +44,25 @@ export const browserManager = {
 
     const launchOptions: any = {
       headless,
-      args: CHROMIUM_ARGS,
+      args: CHROME_ARGS,
+      channel: 'chrome',  // Use real Google Chrome instead of Chromium
     };
 
-    console.log(`[BrowserManager] Launching Chromium (${headless ? 'headless' : 'headed'})...`);
+    console.log(`[BrowserManager] Launching Chrome (${headless ? 'headless' : 'headed'})...`);
 
     try {
       browser = await chromium.launch(launchOptions);
     } catch (e: any) {
-      // If launch fails with stealth, retry with vanilla playwright
-      console.warn(`[BrowserManager] Launch failed: ${e.message}, retrying with vanilla Playwright...`);
-      browser = await playwrightChromium.launch(launchOptions);
+      // If Chrome not available, fall back to Chromium
+      console.warn(`[BrowserManager] Chrome not available: ${e.message}, falling back to Chromium...`);
+      delete launchOptions.channel;
+      try {
+        browser = await chromium.launch(launchOptions);
+      } catch (e2: any) {
+        console.warn(`[BrowserManager] Stealth launch failed: ${e2.message}, using vanilla Playwright...`);
+        delete launchOptions.channel;
+        browser = await playwrightChromium.launch(launchOptions);
+      }
     }
 
     browser!.on('disconnected', () => {
@@ -60,7 +70,7 @@ export const browserManager = {
       browser = null;
     });
 
-    console.log('[BrowserManager] Chromium launched');
+    console.log('[BrowserManager] Chrome launched');
     return browser!;
   },
 
