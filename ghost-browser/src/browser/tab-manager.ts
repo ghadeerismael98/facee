@@ -12,9 +12,19 @@ interface TabEntry {
 }
 
 const tabs = new Map<string, TabEntry>();
+const MAX_TABS = 10; // Safety limit to prevent OOM
 
 export const tabManager = {
   async createTab(url?: string, profileId?: string): Promise<{ id: string; url: string; title: string; windowId: string; active: boolean; profileId?: string }> {
+    // Safety: close oldest tabs if at limit to prevent OOM
+    if (tabs.size >= MAX_TABS) {
+      const oldest = tabs.keys().next().value;
+      if (oldest) {
+        console.warn(`[TabManager] At max ${MAX_TABS} tabs, closing oldest: ${oldest}`);
+        await this.closeTab(oldest);
+      }
+    }
+
     const pId = profileId || 'default';
     const context = await contextManager.getOrCreate(pId);
     const page = await context.newPage();
