@@ -58,6 +58,9 @@ export interface FingerprintConfig {
   uaModel: string;
   uaFullVersionList: Array<{ brand: string; version: string }>;
 
+  // User Agent (matching platform)
+  userAgent: string;
+
   // Storage estimate
   storageQuota: number;
   storageUsage: number;
@@ -245,12 +248,28 @@ export function generateFingerprint(seed: number, platformHint?: string): Finger
       { brand: 'Not_A Brand', version: '24.0.0.0' },
     ],
 
+    // User Agent (matching platform)
+    userAgent: generateMatchingUAFromPlatform(platform, rng),
+
     // Storage
     storageQuota: rng.int(200, 300) * 1024 * 1024 * 1024,  // 200-300 GB
     storageUsage: rng.int(50, 500) * 1024 * 1024,           // 50-500 MB
   };
 
   return config;
+}
+
+function generateMatchingUAFromPlatform(platform: 'windows' | 'mac' | 'linux', rng: SeededPRNG): string {
+  const chromeVersion = 120 + rng.int(0, 10);
+  const buildNum = 6000 + rng.int(0, 2000);
+  switch (platform) {
+    case 'windows':
+      return `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.${buildNum}.0 Safari/537.36`;
+    case 'mac':
+      return `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.${buildNum}.0 Safari/537.36`;
+    case 'linux':
+      return `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion}.0.${buildNum}.0 Safari/537.36`;
+  }
 }
 
 /** Generate a User Agent string that matches the fingerprint platform */

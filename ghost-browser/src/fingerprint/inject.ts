@@ -66,7 +66,8 @@ var navProps = {
   vendor:              { get: function() { return C.vendor; }, configurable: true, enumerable: true },
   maxTouchPoints:      { get: function() { return C.maxTouchPoints; }, configurable: true, enumerable: true },
   webdriver:           { get: function() { return false; }, configurable: true, enumerable: true },
-  pdfViewerEnabled:    { get: function() { return true; }, configurable: true, enumerable: true }
+  pdfViewerEnabled:    { get: function() { return true; }, configurable: true, enumerable: true },
+  userAgent:           { get: function() { return C.userAgent; }, configurable: true, enumerable: true }
 };
 
 for (var navKey in navProps) {
