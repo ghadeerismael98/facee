@@ -451,8 +451,11 @@
           <div>
             <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Network</label>
             <div style="display:flex;gap:8px;margin-bottom:8px">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);flex:1;font-size:13px;transition:all .15s" id="netDirect" onclick="setNetworkMode('direct')">
+                <input type="radio" name="netMode" value="direct" checked style="accent-color:var(--accent)"> Direct
+              </label>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);flex:1;font-size:13px;transition:all .15s" id="netTor" onclick="setNetworkMode('tor')">
-                <input type="radio" name="netMode" value="tor" checked style="accent-color:var(--accent)"> Tor Network
+                <input type="radio" name="netMode" value="tor" style="accent-color:var(--accent)"> Tor Network
               </label>
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);flex:1;font-size:13px;transition:all .15s" id="netProxy" onclick="setNetworkMode('proxy')">
                 <input type="radio" name="netMode" value="proxy" style="accent-color:var(--accent)"> Proxy
@@ -604,7 +607,7 @@ Example format:
       currentNetMode = mode;
       document.getElementById('torInfo').style.display = mode === 'tor' ? 'block' : 'none';
       document.getElementById('proxyInput').style.display = mode === 'proxy' ? 'block' : 'none';
-      ['netTor','netProxy'].forEach(function(id) {
+      ['netDirect','netTor','netProxy'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.borderColor = id === 'net' + mode.charAt(0).toUpperCase() + mode.slice(1) ? 'var(--accent)' : 'var(--border)';
       });
@@ -614,9 +617,9 @@ Example format:
       document.getElementById('newProfileName').value = '';
       document.getElementById('newProfileProxy').value = '';
       document.getElementById('addProfileError').style.display = 'none';
-      currentNetMode = 'tor';
-      setNetworkMode('tor');
-      document.querySelector('input[name="netMode"][value="tor"]').checked = true;
+      currentNetMode = 'direct';
+      setNetworkMode('direct');
+      document.querySelector('input[name="netMode"][value="direct"]').checked = true;
       document.getElementById('newProfileName').focus();
     }
     function hideAddProfileModal() {
