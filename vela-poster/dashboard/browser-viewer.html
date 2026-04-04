@@ -29,11 +29,14 @@
   <div class="toolbar">
     <span class="status off" id="status">Connecting...</span>
     <span style="flex:1"></span>
+    <button onclick="zoomOut()" title="Zoom out">−</button>
+    <span id="zoomLevel" style="font-size:10px;font-family:var(--mono);color:var(--text-dim);min-width:35px;text-align:center">100%</span>
+    <button onclick="zoomIn()" title="Zoom in">+</button>
     <button class="danger" onclick="closeTab()">Close Tab</button>
   </div>
 
-  <div class="viewport" id="viewport">
-    <img id="screen" alt="Browser" style="display:none">
+  <div class="viewport" id="viewport" style="overflow:auto">
+    <img id="screen" alt="Browser" style="display:none;transform-origin:top left">
     <div id="loadingMsg" style="color:var(--text-dim)">Opening Facebook...</div>
   </div>
 
@@ -54,6 +57,24 @@
     var imgEl = document.getElementById('screen');
     var loadingEl = document.getElementById('loadingMsg');
     var statusEl = document.getElementById('status');
+    var zoomLevel = 1;
+
+    function zoomIn() {
+      if (zoomLevel >= 3) return;
+      zoomLevel = Math.round((zoomLevel + 0.25) * 100) / 100;
+      applyZoom();
+    }
+    function zoomOut() {
+      if (zoomLevel <= 0.5) return;
+      zoomLevel = Math.round((zoomLevel - 0.25) * 100) / 100;
+      applyZoom();
+    }
+    function applyZoom() {
+      imgEl.style.transform = 'scale(' + zoomLevel + ')';
+      imgEl.style.maxWidth = zoomLevel > 1 ? 'none' : '100%';
+      imgEl.style.maxHeight = zoomLevel > 1 ? 'none' : '100%';
+      document.getElementById('zoomLevel').textContent = Math.round(zoomLevel * 100) + '%';
+    }
 
     function startScreenshots() {
       if (refreshInterval) clearInterval(refreshInterval);
@@ -82,8 +103,8 @@
 
     imgEl.addEventListener('click', function(e) {
       var rect = imgEl.getBoundingClientRect();
-      var x = Math.round((e.clientX - rect.left) * (1920 / rect.width));
-      var y = Math.round((e.clientY - rect.top) * (1080 / rect.height));
+      var x = Math.round((e.clientX - rect.left) * (1920 / (rect.width)));
+      var y = Math.round((e.clientY - rect.top) * (1080 / (rect.height)));
       fetch(DASH + '/api/browser/click/' + tabId, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ x: x, y: y })
