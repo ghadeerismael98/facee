@@ -350,6 +350,30 @@
 
     startPolling();
 
+    // Also poll storage changes every 2 seconds for live posting feedback
+    setInterval(function () {
+      get('/api/storage/local?keys=isPostingInProgress,postingStatus,postsCompleted,showModal,modalHiddenByUser').then(function (data) {
+        if (!data) return;
+        var changes = {};
+        var hasChanges = false;
+        var keysToCheck = ['isPostingInProgress', 'postingStatus', 'postsCompleted', 'showModal', 'modalHiddenByUser'];
+        for (var i = 0; i < keysToCheck.length; i++) {
+          var key = keysToCheck[i];
+          var newVal = JSON.stringify(data[key] || null);
+          if (newVal !== JSON.stringify(window.__lastPostingState && window.__lastPostingState[key] || null)) {
+            changes[key] = { newValue: data[key] };
+            hasChanges = true;
+          }
+        }
+        if (hasChanges) {
+          window.__lastPostingState = data;
+          storageListeners.forEach(function (fn) {
+            try { fn(changes, 'local'); } catch (e) {}
+          });
+        }
+      }).catch(function () {});
+    }, 2000);
+
     // ── Re-sync on focus ──────────────────────────────────────────
     // When user switches to this tab/iframe, re-read Zustand keys from server
     // and fire chrome.storage.onChanged so the React app updates.
