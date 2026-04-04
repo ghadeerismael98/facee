@@ -57,23 +57,30 @@
     var imgEl = document.getElementById('screen');
     var loadingEl = document.getElementById('loadingMsg');
     var statusEl = document.getElementById('status');
-    var zoomLevel = 1;
+    var zoomPct = 100; // percentage of viewport width
 
     function zoomIn() {
-      if (zoomLevel >= 3) return;
-      zoomLevel = Math.round((zoomLevel + 0.25) * 100) / 100;
+      if (zoomPct >= 300) return;
+      zoomPct += 10;
       applyZoom();
     }
     function zoomOut() {
-      if (zoomLevel <= 0.5) return;
-      zoomLevel = Math.round((zoomLevel - 0.25) * 100) / 100;
+      if (zoomPct <= 30) return;
+      zoomPct -= 10;
       applyZoom();
     }
     function applyZoom() {
-      imgEl.style.transform = 'scale(' + zoomLevel + ')';
-      imgEl.style.maxWidth = zoomLevel > 1 ? 'none' : '100%';
-      imgEl.style.maxHeight = zoomLevel > 1 ? 'none' : '100%';
-      document.getElementById('zoomLevel').textContent = Math.round(zoomLevel * 100) + '%';
+      imgEl.style.transform = 'none';
+      if (zoomPct === 100) {
+        imgEl.style.maxWidth = '100%';
+        imgEl.style.maxHeight = '100%';
+        imgEl.style.width = '';
+      } else {
+        imgEl.style.maxWidth = 'none';
+        imgEl.style.maxHeight = 'none';
+        imgEl.style.width = zoomPct + '%';
+      }
+      document.getElementById('zoomLevel').textContent = zoomPct + '%';
     }
 
     function startScreenshots() {
