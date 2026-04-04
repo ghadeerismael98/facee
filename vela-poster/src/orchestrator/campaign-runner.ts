@@ -195,6 +195,8 @@ export class CampaignRunner {
       showModal: true,
       modalHiddenByUser: false,
       isPostingInProgress: 'started',
+      postsCompleted: [],
+      postingStatus: 'Starting...',
     });
 
     if (profileMode === 'single' || !payload.profileIds || payload.profileIds.length === 0) {
