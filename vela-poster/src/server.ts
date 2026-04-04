@@ -105,12 +105,23 @@ async function disableHttpsFirstOnAllProfiles(): Promise<void> {
 const PROFILE_PORT_BASE = 5001;
 const profilePortMap: Record<string, number> = {};
 const profileServers: Record<string, any> = {}; // track servers so we can close them
-let nextProfilePort = PROFILE_PORT_BASE;
+const freedPorts: number[] = []; // recycled ports from deleted profiles
+
+function getNextPort(): number {
+  if (freedPorts.length > 0) {
+    return freedPorts.sort((a, b) => a - b).shift()!; // reuse lowest freed port
+  }
+  // Find the next unused port
+  const usedPorts = new Set(Object.values(profilePortMap));
+  let port = PROFILE_PORT_BASE;
+  while (usedPorts.has(port)) port++;
+  return port;
+}
 
 function startPortForProfile(profileId: string, profileName: string): number {
   if (profilePortMap[profileId]) return profilePortMap[profileId];
 
-  const port = nextProfilePort++;
+  const port = getNextPort();
   profilePortMap[profileId] = port;
 
   const profileApp = express();
@@ -131,10 +142,12 @@ function startPortForProfile(profileId: string, profileName: string): number {
 function stopPortForProfile(profileId: string): void {
   const server = profileServers[profileId];
   if (server) {
+    const port = profilePortMap[profileId];
     server.close();
     delete profileServers[profileId];
     delete profilePortMap[profileId];
-    console.log(`[Server] Profile "${profileId}" port stopped`);
+    if (port) freedPorts.push(port); // recycle the port
+    console.log(`[Server] Profile "${profileId}" port ${port} stopped (recycled)`);
   }
 }
 
