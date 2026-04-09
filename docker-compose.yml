@@ -32,7 +32,7 @@ services:
   dashboard:
     build: ./vela-poster/dashboard
     ports:
-      - "4000:4000"   # Only this port exposed to internet
+      - "127.0.0.1:4000:4000"   # Internal only — accessed via Cloudflare Tunnel
     environment:
       - POSTER_URL=http://vela-poster:${POSTER_PORT:-3333}
       - VELA_API_URL=http://ghost-browser:1306
@@ -41,6 +41,15 @@ services:
       - DASH_PASS=${DASH_PASS:-}
     depends_on:
       - vela-poster
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+    environment:
+      - CF_TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    depends_on:
+      - dashboard
     restart: unless-stopped
 
 volumes:
